@@ -39,7 +39,8 @@ def extract_rank(tax, rank: str):
 def drep_cluster_plot(drep_df: pd.DataFrame, gtdb_df: pd.DataFrame, output_path: str, 
                      tax_levels=("phylum", "genus"), top_n: int = 30, fmt: str = "png",
                      tax_levels_space: float = 0.3, fig_size=None, checkm2_df: pd.DataFrame = None,
-                     quast_df: pd.DataFrame = None, bakta_df: pd.DataFrame = None,):
+                     quast_df: pd.DataFrame = None, bakta_df: pd.DataFrame = None,
+                     require_quality: bool = False,):
     """
     Create a horizontal bar plot showing the top N clusters by member count,
     annotated with:
@@ -89,13 +90,6 @@ def drep_cluster_plot(drep_df: pd.DataFrame, gtdb_df: pd.DataFrame, output_path:
     if 'secondary_cluster' not in drep.columns:
         raise ValueError("dRep DataFrame must contain 'secondary_cluster' column")
     
-    # Count members per cluster
-    cluster_counts = drep.groupby('secondary_cluster').size().reset_index(name='n_members')
-    cluster_counts = cluster_counts.sort_values('n_members', ascending=False).head(top_n)
-    
-    total_clusters = drep['secondary_cluster'].nunique()
-    print(f"[INFO] Found {total_clusters} total secondary clusters, showing top {top_n}")
-    
     # Process GTDB data
     if gtdb.index.name is not None:
         gtdb = gtdb.reset_index()
@@ -124,6 +118,37 @@ def drep_cluster_plot(drep_df: pd.DataFrame, gtdb_df: pd.DataFrame, output_path:
 
     print(f"[INFO] Found {len(cluster_reps)} representatives, {cluster_reps['representative'].isin(gtdb_genomes).sum()} are in GTDB")
 
+    # ---- Optional: filter to clusters with CheckM2 quality data ----
+    if require_quality:
+        if checkm2_df is None:
+            print("[WARN] require_quality=True but no checkm2_df provided; skipping filter.")
+        else:
+            checkm2 = checkm2_df.copy()
+            if checkm2.index.name is not None:
+                checkm2 = checkm2.reset_index()
+                checkm2.rename(columns={checkm2.columns[0]: 'Name'}, inplace=True)
+            if 'Name' in checkm2.columns:
+                checkm2['genome_normalized'] = checkm2['Name'].apply(normalize_genome_id)
+                checkm2_genomes = set(checkm2['genome_normalized'].values)
+                before = len(cluster_reps)
+                cluster_reps = cluster_reps[cluster_reps['representative'].isin(checkm2_genomes)]
+                print(f"[INFO] require_quality: {before} -> {len(cluster_reps)} clusters after CheckM2 filter")
+            else:
+                print("[WARN] CheckM2 DataFrame has no 'Name' column; cannot filter by quality.")
+        if len(cluster_reps) == 0:
+            print("[WARN] No clusters pass the quality filter; returning empty plot.")
+
+    # Count members per cluster (after optional filter)
+    cluster_counts = drep.groupby('secondary_cluster').size().reset_index(name='n_members')
+    cluster_counts = cluster_counts[cluster_counts['secondary_cluster'].isin(cluster_reps['secondary_cluster'])]
+    cluster_counts = cluster_counts.sort_values('n_members', ascending=False).head(top_n)
+
+    total_clusters = drep['secondary_cluster'].nunique()
+    filtered_clusters = len(cluster_reps)
+    if require_quality:
+        print(f"[INFO] Found {total_clusters} total secondary clusters, filtered to {filtered_clusters} with QC data, showing top {top_n}")
+    else:
+        print(f"[INFO] Found {total_clusters} total secondary clusters, showing top {top_n}")
 
     cluster_data = cluster_counts.merge(cluster_reps, on='secondary_cluster', how='left')
     cluster_data['representative_display'] = cluster_data['representative'].apply(format_genome_display)
@@ -678,18 +703,18 @@ def drep_cluster_plot(drep_df: pd.DataFrame, gtdb_df: pd.DataFrame, output_path:
             cb7.set_label("Hypo/CDS ratio", fontsize=7, labelpad=1)
 
     # ---- Info box ----
-    total_mags = len(drep)
-    mags_in_top_clusters = drep[drep['secondary_cluster'].isin(cluster_data['secondary_cluster'])].shape[0]
+    mags_shown = drep[drep['secondary_cluster'].isin(cluster_data['secondary_cluster'])].shape[0]
+    clusters_shown = cluster_data['secondary_cluster'].nunique()
     
     info_text = (
-        f"Total MAGs: {total_mags}\n"
-        f"Total clusters: {total_clusters}\n"
-        f"MAGs in top {top_n}: {mags_in_top_clusters} "
-        f"({mags_in_top_clusters/total_mags*100:.1f}%)"
+        f"Total MAGs: {mags_shown}\n"
+        f"Total clusters: {clusters_shown}\n"
+        f"MAGs in top {top_n}: {mags_shown} "
+        f"({mags_shown/len(drep)*100:.1f}%)"
     )
     
     fig.text(
-        0.02, 0.02,
+        0.02, -0.01,
         info_text,
         fontsize=10,
         verticalalignment='bottom',

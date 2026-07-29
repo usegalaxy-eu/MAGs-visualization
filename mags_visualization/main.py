@@ -288,6 +288,8 @@ def build_parser():
     p.add_argument("--tax_levels_space", type=float, default=0.8, dest="tax_levels_space", help="Spacing between taxonomy columns (cm)")
     p.add_argument("--fig_size", nargs=2, type=float, metavar=("WIDTH", "HEIGHT"), dest="fig_size",
                    help="Figure size in cm (width height)")
+    p.add_argument("--require_quality", action="store_true", dest="require_quality",
+                   help="Only show clusters whose representative has CheckM2 data")
     p.add_argument("-o", "--output", required=True, dest="output")
     p.add_argument("--format", choices=["png", "pdf", "svg"], default="png", dest="format")
 
@@ -378,6 +380,8 @@ def build_parser():
     p.add_argument("--tax_levels", nargs="+", choices=tax_levels, default=["phylum", "genus"])
     p.add_argument("--top_n", type=positive_int, default=30, dest="n")
     p.add_argument("--quality", action="store_true")
+    p.add_argument("--require_quality", action="store_true", dest="require_quality",
+                   help="Only show clusters whose representative has CheckM2 data")
     p.add_argument("--tax", action="store_true")
     p.add_argument("--meta_col", dest="meta_col", default=None)
     p.add_argument("--meta_cols", nargs="+", default=None)
@@ -490,6 +494,7 @@ def run_drep_cluster(args):
         checkm2_df=dfs.get("checkm2"),
         quast_df=dfs.get("quast"),
         bakta_df=dfs.get("bakta"),
+        require_quality=getattr(args, "require_quality", False),
     )
 
 
@@ -719,6 +724,7 @@ def run_all(args):
             checkm2_df=dfs.get("checkm2"),
             quast_df=dfs.get("quast"),
             bakta_df=dfs.get("bakta"),
+            require_quality=getattr(args, "require_quality", False),
        )
     
     # drep-cluster-func
