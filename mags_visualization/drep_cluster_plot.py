@@ -729,12 +729,6 @@ def drep_cluster_plot(drep_df: pd.DataFrame, gtdb_df: pd.DataFrame, output_path:
         fontweight='bold'
     )
 
-    txt_file = os.path.join(output_path, "cluster_data_debug.txt")
-
-    with open(txt_file, "w", encoding="utf-8") as f:
-        f.write(cluster_data.to_string())
-
-    print(f"[INFO] Debug table written to {txt_file}")
         
     tax_tag = "-".join(tax_levels)
     out_file = os.path.join(output_path, f"drep_cluster_top{top_n}_{tax_tag}.{fmt}")
