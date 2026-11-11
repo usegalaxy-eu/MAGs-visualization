@@ -15,6 +15,23 @@ If the command is not available, install the package first: ['README.md'](../REA
 use_case_folder="bee-use-case/data"
 ```
 
+### Overview figure (manuscript Figure 4)
+
+```bash
+mags-visualization overview-figure \
+  --gtdb "$use_case_folder/gtdb.tsv" \
+  --coverm "$use_case_folder/coverm.tsv" \
+  --checkm2 "$use_case_folder/checkm2.tsv" \
+  --drep "$use_case_folder/drep.csv" \
+  --pathways "$use_case_folder/kegg_pathway_completeness.tsv" \
+  --metadata "$use_case_folder/metadata.tsv" \
+  --meta_cols "Infection by Nosema ceranae" "Chronic exposure to neonicotinoid" "Treatment with probiotic" \
+  --meta_labels "N. ceranae" Neonicotinoid Probiotic \
+  --sample_label_col Label --sample_group_col Condition --group_order C P T TP N NP NT \
+  --format png svg pdf \
+  -o bee-use-case/plots
+```
+
 ### Sample heatmap
 
 * Genus

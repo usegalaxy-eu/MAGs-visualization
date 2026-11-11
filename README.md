@@ -1,328 +1,150 @@
-<p align="left">
-  <h1 align="left">Visualizations of MAGs</h1>
-  <p align="left">A toolkit for visualizing MAG quality, taxonomy, clustering, abundance patterns, and functional annotation.</p>
-</p>
+# MAGs-visualization
 
----
+Plots for catalogues of metagenome-assembled genomes (MAGs): quality, taxonomy,
+species-level clusters, abundance across samples and functional potential.
+It reads the standard outputs of a MAG workflow (CheckM/CheckM2, GTDB-Tk, dRep,
+CoverM, QUAST, Bakta, KEGG pathway completeness) and is available as a
+command-line tool, a Python package and [Galaxy tools](https://toolshed.g2.bx.psu.edu/view/iuc/mags_visualization).
+
+![Overview figure](docs/gallery/overview-figure/overview_figure.png)
+
+*`mags-visualization overview-figure` on the bundled bee gut microbiome test data.*
+
+## Contents
+
+- [Installation](#installation)
+- [Quick start](#quick-start)
+- [Plots](#plots) – what each subcommand draws ([gallery with all plots](docs/plots.md))
+- [Input files](#input-files)
+- [Options](#options) – full reference in [docs/cli.md](docs/cli.md)
+- [Development](#development)
 
 ## Installation
-This tool is distributed as a Python package with a command-line interface (CLI).
 
-There are two main ways to install and use the tool:
+From [Bioconda](https://bioconda.github.io/recipes/mags-visualization/README.html):
 
-- Recommended (users): install the package from source and use the command-line tool
+```bash
+conda install -c conda-forge -c bioconda mags-visualization
+```
 
-- Alternative (developers): clone the repository and work on the code base
-
-
-### Prerequisites
-
-- Python ≥ 3.9
-- Conda (Miniconda, Miniforge, Mambaforge)
-- Git
-
-### Option 1 (recommended): Install from source via pip
-This is the recommended way to install and use the tool.
-
-Clone the repository and change into the project directory:
+From source:
 
 ```bash
 git clone https://github.com/usegalaxy-eu/MAGs-visualization.git
 cd MAGs-visualization
-```
-
-Install the package using pip:
-
-```bash
-pip install .
-```
-
-After installation, the command-line tool is available as:
-```bash
+pip install .            # or: conda env create -f environment.yml && conda activate mags && pip install -e .
 mags-visualization --help
 ```
 
-This method works independently of the repository structure.
+Static Plotly exports (PNG/PDF/SVG of the Sankey diagram) need `kaleido` 0.2.1, which is installed with the
+package.
 
-### Option 2: Install from source (development/testing)
-This option is intended for development, testing, or extending the code.
+## Quick start
 
-#### 2a: Conda / Mamba
-
-```bash
-git clone https://github.com/alexandrah1704/MAGs-visualization.git
-cd MAGs-visualization
-```
-
-Create conda environment and activate it:
+Every plot is one subcommand. All of them write into the folder given with `-o`:
 
 ```bash
-conda env create -f environment.yml
-conda activate mags
-pip install -e .
+mags-visualization overview-figure \
+  --gtdb test-data/gtdb.tsv --coverm test-data/coverm.tsv --checkm2 test-data/checkm2.tsv \
+  --drep test-data/drep.csv --pathways test-data/kegg_pathway_completeness.tsv \
+  --metadata test-data/metadata.tsv --meta_cols 7 8 9 --sample_label_col Label --sample_group_col Condition \
+  --format png svg -o overview
 ```
 
-#### 2b: Python virtual environment (pip)
+The [gallery](docs/plots.md) shows the command and the result for every subcommand and mode.
 
-```powershell
-# Change into project directory
-cd MAGs-visualization
+## Plots
 
-# Create virtual environment
-python -m venv .venv
+| Subcommand | Plot | Required inputs |
+|---|---|---|
+| `overview-figure` | Page-width multi-panel figure: abundance per sample and taxon, MAG quality, taxonomic flow, largest clusters with KEGG modules. Any subset of panels. | `--gtdb` + per panel: `--coverm` (abundance), `--checkm2`/`--checkm` (quality), `--drep` + `--pathways` (function) |
+| `sample-heatmap` | Relative abundance per sample and taxon with metadata bars | `--coverm`, `--gtdb` |
+| `comp-conta` | Completeness vs contamination with marginal histograms, coloured by quality, taxonomy or metadata | `--checkm`/`--checkm2` (+ `--gtdb` for `--mode tax`, `--metadata --meta_col` for `--mode meta`) |
+| `drep-cluster-annot` | Largest dRep clusters with taxonomy and assembly statistics | `--drep`, `--gtdb` (+ `--checkm2 --quast --bakta` for annotations) |
+| `drep-cluster-func` | Largest dRep clusters with KEGG module completeness | `--drep`, `--gtdb`, `--pathways` |
+| `pathway-module-heatmap` | KEGG module completeness of all MAGs, grouped by pathway class | `--drep`, `--gtdb`, `--pathways` |
+| `taxa-sankey` | Sankey diagram of the GTDB taxonomy (interactive HTML or static) | `--gtdb` |
+| `all` | Runs the plots above in one go (legacy, mainly for testing) | all of the above |
 
-# Allow script execution for this session
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+### The overview figure
 
-# Activate virtual environment
-.\.venv\Scripts\Activate.ps1
+`overview-figure` is made for publication: it is drawn at its final size (`--width_cm`, default 17 cm,
+a full page width) with font sizes in points (`--font_size`, default 8 pt), so the text is legible as
+printed and no rescaling is needed. The layout is measured after drawing, so tick labels of one panel never
+run into the next one. The four panels are:
 
-# Install dependencies
-pip install -e .
-```
+- **A – abundance**: relative abundance (% of reads) of the MAGs of each taxon (`--tax_level`) per sample;
+  metadata rows above the heatmap (`--meta_cols`; boolean columns become filled/empty squares, other columns
+  coloured squares), MAGs detected per sample on top, MAGs per taxon on the right. Samples can be labelled
+  and grouped from the metadata (`--sample_label_col`, `--sample_group_col`, `--group_order`).
+- **B – quality**: completeness vs contamination with marginal histograms. High and medium quality are set
+  with `--hq_completeness`, `--hq_contamination`, `--mq_completeness`, `--mq_contamination`. MAGs above
+  `--max_contamination_axis` are drawn as triangles at the edge and their values listed in the legend,
+  so no MAG is silently left out.
+- **C – taxonomy**: flow (Sankey) diagram between two ranks (`--flow_ranks`, default phylum to genus); band
+  width is the number of MAGs, colours follow `--color_rank`. Labels of small taxa are spread apart and
+  connected to their node, so they never overlap.
+- **D – function**: the `--top_n` largest species-level (dRep secondary) clusters with the completeness of
+  the `--top_modules` KEGG modules of their representative MAG, selected by mean completeness (core
+  functions) or variance (`--module_mode`).
 
-After installation, the command-line tool is available as:
-```bash
-mags-visualization --help
-```
-
----
-
-## What is this tool?
-
-This tool generates a variety of visualizations for MAGs, including:
-
-- Taxonomic Sankey diagrams
-- Completeness/Contamination-Plots
-- Heatmaps
-- dRep cluster visualization with taxonomic annotation
-- dRep cluster visualization with functional annotation (KEGG pathway completeness)
-- Standalone KEGG pathway module heatmaps
-- Rank distribution diagram...
-
-All plots are saved in a user-defined output directory.
-
----
+`--color_rank` colours are shared by all panels. Use `--panels` to draw a subset, e.g. `--panels quality`
+for a single plot.
 
 ## Input files
 
-Below are the inputs for a visualization run:
+| Option | File | Produced by |
+|---|---|---|
+| `--gtdb` | GTDB-Tk summary (`user_genome`, `classification`, …) | GTDB-Tk classify |
+| `--checkm2` | CheckM2 quality report (`Name`, `Completeness`, `Contamination`, …) | CheckM2 predict |
+| `--checkm` | CheckM lineage workflow table (`Bin Id`, `Completeness`, `Contamination`, …) | CheckM lineage_wf |
+| `--drep` | dRep `Cdb.csv` (`genome`, `secondary_cluster`, …) | dRep dereplicate |
+| `--coverm` | CoverM genome table with relative abundance per sample (rows: genomes + `unmapped`), or a folder of such tables | CoverM genome |
+| `--pathways` | KEGG pathway completeness (`contig`, `module_accession`, `completeness`, `pathway_name`, `pathway_class`) | kegg-pathways-completeness |
+| `--quast` | QUAST report (one column per MAG) | QUAST |
+| `--bakta` | Bakta summary (one column per MAG) | Bakta |
+| `--metadata` | Sample table, first column = sample names as used in the CoverM columns | – |
 
-| Argument           | Description                           |
-|--------------------|---------------------------------------|
-| --coverm           | CoverM table                          |
-| --checkm           | CheckM result file                    |
-| --checkm2          | CheckM2 result file                   |
-| --gtdb             | GTDB annotation table                 |
-| --drep             | dRep cluster table                    |
-| -o                 | Output folder for all generated plots |
+Genome names are matched across tables after normalisation (file extensions such as `.fasta`/`.fa`, paths and
+case are ignored), so the tables can come from different tools without renaming. Example files of every input
+are in [`test-data/`](test-data) (bee gut microbiome, 38 species-level representative MAGs). Complete use
+cases with their commands are in [`use-cases/`](use-cases/README.md).
 
-Optional:
+## Options
 
-| Argument               | Description                           |
-|------------------------|---------------------------------------|
-| --quast                | QUAST assembly statistics             |
-| --bakta                | Bakta annotation table                |
-| --metadata             | Metadata table for coloring plots     |
-| --metadata             | Metadata for heatmap visualization    |
-| --amber                | CAMI Amber binning evaluation         |
-| --pathways             | KEGG pathway completeness             |
+Every subcommand has its own options; `mags-visualization <subcommand> --help` lists them with their defaults
+and [docs/cli.md](docs/cli.md) contains the same reference for all subcommands. Options shared by several
+plots:
 
-### Input files per subcommand
+| Option | Meaning |
+|---|---|
+| `--tax_level` | GTDB rank used for grouping/colouring (`domain` … `species`) |
+| `--top_n` | Number of largest dRep clusters shown |
+| `--format` | Output format: `png`, `pdf`, `svg` (and `html` for `taxa-sankey`) |
+| `--fig_size W H` | Figure size in cm (where supported) |
+| `--meta_cols` / `--meta_col` | Metadata columns, by name or 1-based index |
+| `-o/--output` | Output folder (created if missing) |
 
-#### sample-heatmap
-- `--coverm` (required)
-- `--gtdb` (required)
-- `--metadata` (optional)
-- `--meta_cols` (optional)
-
-#### comp-conta
-- `--checkm` (required)
-- `--checkm2` (required)
-- `--gtdb` (required for `--mode tax`)
-- `--metadata` + `--meta_col` (required for `--mode meta`)
-
-#### drep-cluster-annot
-- `--drep` (required)
-- `--gtdb` (required)
-- `--checkm2`, `--quast`, `--bakta` (required for annotated heatmap)
-
-#### drep-cluster-func
-- `--drep` (required)
-- `--gtdb` (required)
-- `--pathways` (required for functional annotation heatmap)
-
-#### pathway-module-heatmap
-- `--drep` (required)
-- `--gtdb` (required)
-- `--pathways` (required)
-
-#### taxa-sankey
-- `--gtdb` (required)
-
-
-## Command structure
-
-The command-line interface is organized into **subcommands**.
-Each subcommand generates exactly **one type of plot** and only shows the parameters relevant for that plot.
+## Development
 
 ```bash
-mags-visualization <subcommand> [OPTIONS]
+pip install -e . pytest
+pytest                              # unit, plotting and CLI tests
+python scripts/build_docs.py        # regenerate docs/cli.md and the gallery (docs/plots.md, docs/gallery/)
+python scripts/build_docs.py --check  # fails if docs/cli.md does not match the CLI
 ```
 
-Available subcommands:
-- `sample-heatmap` - MAG detection heatmap per sample
-- `drep-cluster-annot` - dRep cluster visualization with taxonomic/assembly annotation
-- `drep-cluster-func` - dRep cluster overview with taxonomy and functional module heatmap
-- `pathway-module-heatmap` - heatmap of KEGG pathway module completeness across MAGs
-- `comp-conta` - completeness/contamination plots
-- `taxa-sankey` - GTDB taxonomy sankey plots
-- `all` - legacy mode running multiple plots in one command
+CI runs the tests, checks that `docs/cli.md` is up to date and builds the gallery as an end-to-end run of
+every subcommand. When adding or changing an option, regenerate the docs and, for the Galaxy tools, update the
+wrappers in [galaxyproject/tools-iuc](https://github.com/galaxyproject/tools-iuc/tree/main/tools/mags_visualization).
 
-The `all` subcommand is mainly intended for testing.
-For Galaxy integration, the dedicated subcommands are recommended.
+Releases: bump `mags_visualization/version.py`, tag `v<version>` and update the
+[Bioconda recipe](https://github.com/bioconda/bioconda-recipes/tree/master/recipes/mags-visualization).
 
-## Command-Line usage
+## Citation
 
-### Show help
-```bash
-mags-visualization --help
-```
+Hottmann A., Zierep P., Faack S. *MAGs-visualization*. https://github.com/usegalaxy-eu/MAGs-visualization
 
-### Show help for a specific plot
-```bash
-mags-visualization sample-heatmap --help
-mags-visualization drep-cluster-annot --help
-```
+## License
 
-### Example: sample heatmap
-```bash
-
-mags-visualization sample-heatmap \
-  --coverm test-data/coverm.tsv \
-  --gtdb test-data/gtdb.tsv \
-  --output out/sample-heatmap
-```
-
-### Example for test-data
-
-```bash
-
-mags-visualization all \
-  --coverm test-data/coverm.tsv \
-  --checkm test-data/checkm.tsv \
-  --checkm2 test-data/checkm2.tsv \
-  --gtdb test-data/gtdb.tsv \
-  --drep test-data/drep.csv \
-  --quast test-data/quast.tsv \
-  --bakta test-data/bakta.tsv \
-  --pathways test-data/kegg_pathway_completeness.tsv \
-  --metadata test-data/metadata.tsv \
-  --meta_cols "Infection by Nosema ceranae" "Chronic exposure to neonicotinoid" "Treatment with probiotic" \
-  --color_by tax \
-  --tax_level phylum \
-  --top_n 30 \
-  --top_bar_spacer -0.5 \
-  --spacer_meta 2.5 \
-  -o test-plots-run
-```
-
-### How to run automated test-script
-
-```bash
-python scripts/test-script.py
-```
-
-
-## Plot Configurations
-
-### Taxonomic rank
-```bash
---rank phylum
-```
-
-Available ranks:
-```pgsql
-domain, phylum, class, order, family, genus, species
-```
-
-### Top N taxa for plots
-```bash
---top_n_counts 10
-```
-Minimum and Default = 5
-
-### Plot size
-```bash
---fig_size WIDTH HEIGHT
-```
-
-### Output format
-```bash
---format png    # png, pdf or svg
-```
-
-### Coloring mode
-```bash
---quality   # color points by quality categories hq, mq, lq
-or
---color_by quality
-
---tax       # color by taxonomy
-
---color_by tax
---tax_level genus
-
---color_by meta  # color by metadata
---meta_col temperature  # weather or others
---meta_bin_width 5  # for numeric columns
-```
-To show in the heatmap more than one metadata column:
-```bash
---meta_cols weather temp ground # example columns
-```
-
-
-## The following options are only available for specific subcommands
-
-## Heatmap Options
-### Plot features
-```bash
---top_bar_height 0.8  # Height of top bar
-
---hspace 0.25 # Gap between top bar and heatmap
-
---heatmap_width 11.0
-
---spacer_legend 0.3 # Gap between legend and meta_bar
-
---spacer_meta 2.0 # Gap between meta_bar and heatmap
-
---spacer_heatmap # Gap between heatmap and histogram
-
---legend 2.5  # Size of legend
-
---meta_bar_add 1.5  # Additional width for meta_bar
-
---top_bar_spacer 0.0  # Gap between header and top bar
-
---max_col 10  # How many taxonomy names are shown (top 10)
-```
-
-## dRep Options
-```bash
---top_n 30  # show top 30 clusters with most cluster members
-```
-
-## Examples
-Full examples can be found in ['use-cases/README.md'](use-cases/README.md)
-
-The examples include sample heatmaps, taxonomy sankey plots, completeness/contamination plots, and dRep cluster visualizations with functional annotation.
-
-### dRep cluster plot
-
-![dRep cluster plot](use-cases/bee-use-case/plots/drep_cluster_top30_phylum.png)
-
-### Completeness/contamination plot
-
-![Completeness/contamination plot](use-cases/bee-use-case/plots/comp_conta_marginals_checkm2.png)
+GPL-3.0, see [LICENSE](LICENSE).
