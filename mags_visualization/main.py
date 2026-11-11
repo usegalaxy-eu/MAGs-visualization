@@ -360,7 +360,12 @@ def build_parser():
     # ---- taxa-sankey ----
     p = sub.add_parser("taxa-sankey", help="Create GTDB taxa sankey plots.")
     p.add_argument("--gtdb", required=True, dest="gtdb_file")
+    p.add_argument("--coverm", dest="coverm_path", default=None,
+                   help="Optional CoverM abundance table; bar sizes become abundance-based")
     p.add_argument("--rank", choices=tax_levels, default="phylum", dest="rank")
+    p.add_argument("--font_size", type=int, default=10, dest="font_size")
+    p.add_argument("--order_links", action="store_true", dest="order_links",
+                   help="Order nodes/links to reduce crossings (writes sankey_plot_ordered.*)")
     p.add_argument("--format", choices=["html", "png", "pdf", "svg"], default="html")
     p.add_argument("-o", "--output", required=True, dest="output")
 
@@ -642,7 +647,7 @@ def run_comp_conta(args):
 
 def run_taxa_sankey(args):
     dfs = load_dfs(
-        coverm=None,
+        coverm=args.coverm_path,
         checkm=None,
         checkm2=None,
         gtdb=args.gtdb_file,
@@ -650,7 +655,10 @@ def run_taxa_sankey(args):
         metadata=None,
     )
     check_path(args.output)
-    generate_taxa_sanky(dfs["gtdb"], args.output, args.rank, fmt=args.format)
+    coverm_df = merged_coverm(dfs["coverm"]) if dfs["coverm"] else None
+    generate_taxa_sanky(dfs["gtdb"], args.output, args.rank, fmt=args.format,
+                        coverm=coverm_df, font_size=args.font_size,
+                        order_links=getattr(args, "order_links", False))
     taxa_sanky_rank(dfs["gtdb"], args.output, args.rank, fmt=args.format)
 
 
