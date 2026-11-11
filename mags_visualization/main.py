@@ -238,6 +238,66 @@ def load_dfs(coverm, checkm, checkm2, gtdb, drep, bakta=None, quast=None, metada
     return dfs
 
 
+# Help texts of options shared by several subcommands. They are filled in by
+# _add_default_help() wherever an option has no explicit help, so the meaning of
+# an option is written once and identical in every subcommand and in docs/cli.md.
+OPTION_HELP = {
+    "--coverm": "CoverM relative abundance table (genomes x samples, incl. 'unmapped'), or a folder of tables",
+    "--checkm": "CheckM quality table (Bin Id, Completeness, Contamination, ...)",
+    "--checkm2": "CheckM2 quality report (Name, Completeness, Contamination, ...)",
+    "--gtdb": "GTDB-Tk summary table (user_genome, classification, ...)",
+    "--drep": "dRep cluster table Cdb.csv (genome, secondary_cluster, ...)",
+    "--quast": "QUAST report with one column per MAG",
+    "--bakta": "Bakta summary with one column per MAG",
+    "--pathways": "KEGG pathway completeness table (contig, module_accession, completeness, pathway_name, "
+                  "pathway_class)",
+    "--metadata": "Sample metadata table; the first column holds the sample names used in the CoverM columns",
+    "--meta_cols": "Metadata columns shown as annotation bars (names or 1-based column indices)",
+    "--meta_col": "Metadata column used for colouring (name or 1-based column index)",
+    "--meta_bin_width": "Bin width used to group numeric metadata values",
+    "--tax_level": "GTDB rank used to group and colour the MAGs",
+    "--tax_levels": "GTDB ranks shown as taxonomy columns next to the clusters",
+    "--rank": "Rank of the second Sankey diagram (sankey_plot_rank_filtered), which links each MAG to its taxon "
+              "at this rank",
+    "--top_n": "Number of largest dRep clusters (or most frequent categories) shown; minimum 5",
+    "--top_modules": "Number of KEGG modules shown ('none' for all)",
+    "--output": "Output folder (created if it does not exist)",
+    "--format": "Output file format",
+    "--max_col": "Show the N most abundant taxa as columns and pool the rest as 'Others'",
+    "--no_log": "Plot MAGs per taxon on a linear instead of a log10 axis",
+    "--top_bar_height": "Height of the MAGs-per-taxon bar chart",
+    "--hspace": "Vertical gap between the bar chart and the heatmap",
+    "--heatmap_width": "Width of the heatmap",
+    "--spacer_legend": "Gap between the legend and the metadata bars",
+    "--spacer_meta": "Gap between the metadata bars and the heatmap",
+    "--spacer_heatmap": "Gap between the heatmap and the MAGs-per-sample histogram",
+    "--legend": "Width of the legend column",
+    "--meta_bar_add": "Extra width added to the metadata bars",
+    "--top_bar_spacer": "Gap above the MAGs-per-taxon bar chart",
+    "--row_fontsize": "Font size (pt) of the MAG names on the rows",
+    "--font_size": "Font size (pt) of node labels",
+    "--quality": "Colour the completeness/contamination plot by MAG quality",
+    "--tax": "Colour the completeness/contamination plot by taxonomy",
+    "--color_by": "Colouring of the completeness/contamination plot",
+    "--tax_levels_space": "Spacing between taxonomy columns (cm)",
+    "--mode": "Module selection: mean = core modules, variance = differential modules",
+    "--top_representatives": "Limit the heatmap to the representatives of the N largest clusters",
+    "--column_choice": "Unused; accepted for backwards compatibility",
+    "--show_module_labels": "Unused; accepted for backwards compatibility (see --module_label)",
+}
+
+
+def _add_default_help(parser):
+    """Fill missing help texts from OPTION_HELP and show defaults in --help."""
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            for sp in action.choices.values():
+                sp.formatter_class = argparse.ArgumentDefaultsHelpFormatter
+                _add_default_help(sp)
+        elif not action.help and action.option_strings:
+            action.help = OPTION_HELP.get(action.option_strings[-1], None)
+
+
 # ---- Parser builder - subcommands ---- #
 def build_parser():
     parser = argparse.ArgumentParser(
@@ -486,6 +546,7 @@ def build_parser():
     p.add_argument("--row_fontsize", type=int, default=8, dest="row_fontsize")
     p.add_argument("--top_representatives", type=int, default=None, dest="top_representatives")
 
+    _add_default_help(parser)
     return parser
 
 

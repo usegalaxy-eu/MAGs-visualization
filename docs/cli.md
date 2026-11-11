@@ -53,27 +53,55 @@ usage: mags-visualization sample-heatmap [-h] --coverm COVERM_PATH --gtdb
 
 options:
   -h, --help            show this help message and exit
-  --coverm COVERM_PATH
-  --gtdb GTDB_FILE
+  --coverm COVERM_PATH  CoverM relative abundance table (genomes x samples,
+                        incl. 'unmapped'), or a folder of tables (default:
+                        None)
+  --gtdb GTDB_FILE      GTDB-Tk summary table (user_genome, classification,
+                        ...) (default: None)
   --metadata METADATA_FILE
+                        Sample metadata table; the first column holds the
+                        sample names used in the CoverM columns (default:
+                        None)
   --meta_cols META_COLS [META_COLS ...]
+                        Metadata columns shown as annotation bars (names or
+                        1-based column indices) (default: None)
   --tax_level {domain,phylum,class,order,family,genus,species}
+                        GTDB rank used to group and colour the MAGs (default:
+                        phylum)
   -o OUTPUT, --output OUTPUT
+                        Output folder (created if it does not exist) (default:
+                        None)
   --format {png,pdf,svg}
+                        Output file format (default: png)
   --meta_bin_width META_BIN_WIDTH
-  --max_col MAX_COL
-  --no_log
+                        Bin width used to group numeric metadata values
+                        (default: 5.0)
+  --max_col MAX_COL     Show the N most abundant taxa as columns and pool the
+                        rest as 'Others' (default: 10)
+  --no_log              Plot MAGs per taxon on a linear instead of a log10
+                        axis (default: False)
 
 Heatmap Layout Options (all values in cm):
   --top_bar_height TOP_BAR_HEIGHT
-  --hspace HSPACE
+                        Height of the MAGs-per-taxon bar chart (default: 1.8)
+  --hspace HSPACE       Vertical gap between the bar chart and the heatmap
+                        (default: 0.6)
   --heatmap_width HEATMAP_WIDTH
+                        Width of the heatmap (default: 28.0)
   --spacer_legend SPACER_LEGEND
+                        Gap between the legend and the metadata bars (default:
+                        0.8)
   --spacer_meta SPACER_META
+                        Gap between the metadata bars and the heatmap
+                        (default: 5.0)
   --spacer_heatmap SPACER_HEATMAP
-  --legend LEGEND
+                        Gap between the heatmap and the MAGs-per-sample
+                        histogram (default: 0.25)
+  --legend LEGEND       Width of the legend column (default: 6.4)
   --meta_bar_add META_BAR_ADD
+                        Extra width added to the metadata bars (default: 3.8)
   --top_bar_spacer TOP_BAR_SPACER
+                        Gap above the MAGs-per-taxon bar chart (default: 0.0)
 ```
 
 ## drep-cluster-annot
@@ -93,21 +121,31 @@ usage: mags-visualization drep-cluster-annot [-h] --drep DREP_FILE --gtdb
 
 options:
   -h, --help            show this help message and exit
-  --drep DREP_FILE
-  --gtdb GTDB_FILE
+  --drep DREP_FILE      dRep cluster table Cdb.csv (genome, secondary_cluster,
+                        ...) (default: None)
+  --gtdb GTDB_FILE      GTDB-Tk summary table (user_genome, classification,
+                        ...) (default: None)
   --checkm2 CHECKM2_FILE
-  --quast QUAST_FILE
-  --bakta BAKTA_FILE
+                        CheckM2 quality report (Name, Completeness,
+                        Contamination, ...) (default: None)
+  --quast QUAST_FILE    QUAST report with one column per MAG (default: None)
+  --bakta BAKTA_FILE    Bakta summary with one column per MAG (default: None)
   --tax_levels {domain,phylum,class,order,family,genus,species} [{domain,phylum,class,order,family,genus,species} ...]
-  --top_n N
+                        GTDB ranks shown as taxonomy columns next to the
+                        clusters (default: ['phylum', 'genus'])
+  --top_n N             Number of largest dRep clusters (or most frequent
+                        categories) shown; minimum 5 (default: 30)
   --tax_levels_space TAX_LEVELS_SPACE
-                        Spacing between taxonomy columns (cm)
+                        Spacing between taxonomy columns (cm) (default: 0.8)
   --fig_size WIDTH HEIGHT
-                        Figure size in cm (width height)
+                        Figure size in cm (width height) (default: None)
   --require_quality     Only show clusters whose representative has CheckM2
-                        data
+                        data (default: False)
   -o OUTPUT, --output OUTPUT
+                        Output folder (created if it does not exist) (default:
+                        None)
   --format {png,pdf,svg}
+                        Output file format (default: png)
 ```
 
 ## drep-cluster-func
@@ -129,28 +167,41 @@ usage: mags-visualization drep-cluster-func [-h] --drep DREP_FILE --gtdb
 
 options:
   -h, --help            show this help message and exit
-  --drep DREP_FILE
-  --gtdb GTDB_FILE
+  --drep DREP_FILE      dRep cluster table Cdb.csv (genome, secondary_cluster,
+                        ...) (default: None)
+  --gtdb GTDB_FILE      GTDB-Tk summary table (user_genome, classification,
+                        ...) (default: None)
   --checkm2 CHECKM2_FILE
-  --quast QUAST_FILE
-  --bakta BAKTA_FILE
+                        CheckM2 quality report (Name, Completeness,
+                        Contamination, ...) (default: None)
+  --quast QUAST_FILE    QUAST report with one column per MAG (default: None)
+  --bakta BAKTA_FILE    Bakta summary with one column per MAG (default: None)
   --pathways PATHWAYS_FILE
                         TSV with contig, module accession, completeness,
-                        pathway_name, pathway_class, ...
+                        pathway_name, pathway_class, ... (default: None)
   --tax_levels {domain,phylum,class,order,family,genus,species} [{domain,phylum,class,order,family,genus,species} ...]
-  --top_n N
+                        GTDB ranks shown as taxonomy columns next to the
+                        clusters (default: ['phylum', 'genus'])
+  --top_n N             Number of largest dRep clusters (or most frequent
+                        categories) shown; minimum 5 (default: 30)
   --tax_levels_space TAX_LEVELS_SPACE
-                        Spacing between taxonomy columns (cm)
+                        Spacing between taxonomy columns (cm) (default: 0.8)
   --fig_size WIDTH HEIGHT
-                        Figure size in cm (width height)
+                        Figure size in cm (width height) (default: None)
   -o OUTPUT, --output OUTPUT
+                        Output folder (created if it does not exist) (default:
+                        None)
   --format {png,pdf,svg}
+                        Output file format (default: png)
   --top_modules TOP_MODULES
+                        Number of KEGG modules shown ('none' for all)
+                        (default: 35)
   --mode {mean,variance,both}
                         mean = core modules, variance = differential modules,
-                        or both.
+                        or both. (default: mean)
   --module_label {id,name,both}
                         Module labels on the x-axis: id, name or both
+                        (default: id)
 ```
 
 ## pathway-module-heatmap
@@ -173,27 +224,36 @@ options:
   -h, --help            show this help message and exit
   --pathways PATHWAYS_FILE
                         TSV with contig, module_accession, completeness,
-                        pathway_name, pathway_class, ...
+                        pathway_name, pathway_class, ... (default: None)
   --top_modules TOP_MODULES
                         Number of modules to show. Use None to show all
-                        modules.
+                        modules. (default: 30)
   --mode {mean,variance}
                         mean = core modules, variance = differential modules
+                        (default: mean)
   --fig_size WIDTH HEIGHT
-                        Figure size in cm (width height)
+                        Figure size in cm (width height) (default: None)
   --row_fontsize ROW_FONTSIZE
+                        Font size (pt) of the MAG names on the rows (default:
+                        8)
   -o OUTPUT, --output OUTPUT
+                        Output folder (created if it does not exist) (default:
+                        None)
   --format {png,pdf,svg}
+                        Output file format (default: png)
   --drep DREP_FILE      Optional dRep table used to restrict the heatmap to
-                        representatives only.
+                        representatives only. (default: None)
   --gtdb GTDB_FILE      Optional GTDB table required together with --drep when
-                        using --top_representatives.
+                        using --top_representatives. (default: None)
   --top_representatives TOP_REPRESENTATIVES
                         Limit number of representative MAGs (e.g. top 30)
+                        (default: None)
   --sort_by {cluster_size,none}
-                        How to select top representatives
+                        How to select top representatives (default:
+                        cluster_size)
   --module_label {id,name,both}
                         Module labels on the x-axis: id, name, or both.
+                        (default: id)
 ```
 
 ## comp-conta
@@ -214,22 +274,40 @@ usage: mags-visualization comp-conta [-h] [--tools {both,checkm,checkm2}]
 options:
   -h, --help            show this help message and exit
   --tools {both,checkm,checkm2}
-                        Which tool results to plot (default: both)
-  --checkm CHECKM_FILE
+                        Which tool results to plot (default: both) (default:
+                        both)
+  --checkm CHECKM_FILE  CheckM quality table (Bin Id, Completeness,
+                        Contamination, ...) (default: None)
   --checkm2 CHECKM2_FILE
-  --gtdb GTDB_FILE
+                        CheckM2 quality report (Name, Completeness,
+                        Contamination, ...) (default: None)
+  --gtdb GTDB_FILE      GTDB-Tk summary table (user_genome, classification,
+                        ...) (default: None)
   --metadata METADATA_FILE
-  --meta_col META_COL
+                        Sample metadata table; the first column holds the
+                        sample names used in the CoverM columns (default:
+                        None)
+  --meta_col META_COL   Metadata column used for colouring (name or 1-based
+                        column index) (default: None)
   --meta_bin_width META_BIN_WIDTH
-  --top_n N
+                        Bin width used to group numeric metadata values
+                        (default: 5.0)
+  --top_n N             Number of largest dRep clusters (or most frequent
+                        categories) shown; minimum 5 (default: 30)
   --mode {quality,tax,meta}
                         quality = plain plots; tax = rank plot needs --gtdb;
                         meta = metadata plot needs --metadata and --meta_col
+                        (default: quality)
   --tax_level {domain,phylum,class,order,family,genus,species}
+                        GTDB rank used to group and colour the MAGs (default:
+                        phylum)
   --fig_size WIDTH HEIGHT
-                        Figure size in cm (width height)
+                        Figure size in cm (width height) (default: None)
   -o OUTPUT, --output OUTPUT
+                        Output folder (created if it does not exist) (default:
+                        None)
   --format {png,pdf,svg}
+                        Output file format (default: png)
 ```
 
 ## taxa-sankey
@@ -243,15 +321,23 @@ usage: mags-visualization taxa-sankey [-h] --gtdb GTDB_FILE
 
 options:
   -h, --help            show this help message and exit
-  --gtdb GTDB_FILE
+  --gtdb GTDB_FILE      GTDB-Tk summary table (user_genome, classification,
+                        ...) (default: None)
   --coverm COVERM_PATH  Optional CoverM abundance table; bar sizes become
-                        abundance-based
+                        abundance-based (default: None)
   --rank {domain,phylum,class,order,family,genus,species}
+                        Rank of the second Sankey diagram
+                        (sankey_plot_rank_filtered), which links each MAG to
+                        its taxon at this rank (default: phylum)
   --font_size FONT_SIZE
+                        Font size (pt) of node labels (default: 10)
   --order_links         Order nodes/links to reduce crossings (writes
-                        sankey_plot_ordered.*)
+                        sankey_plot_ordered.*) (default: False)
   --format {html,png,pdf,svg}
+                        Output file format (default: html)
   -o OUTPUT, --output OUTPUT
+                        Output folder (created if it does not exist) (default:
+                        None)
 ```
 
 ## overview-figure
@@ -426,47 +512,105 @@ usage: mags-visualization all [-h] [--coverm COVERM_PATH]
 
 options:
   -h, --help            show this help message and exit
-  --coverm COVERM_PATH
-  --checkm CHECKM_FILE
+  --coverm COVERM_PATH  CoverM relative abundance table (genomes x samples,
+                        incl. 'unmapped'), or a folder of tables (default:
+                        None)
+  --checkm CHECKM_FILE  CheckM quality table (Bin Id, Completeness,
+                        Contamination, ...) (default: None)
   --checkm2 CHECKM2_FILE
-  --gtdb GTDB_FILE
-  --drep DREP_FILE
-  --quast QUAST_FILE
-  --bakta BAKTA_FILE
+                        CheckM2 quality report (Name, Completeness,
+                        Contamination, ...) (default: None)
+  --gtdb GTDB_FILE      GTDB-Tk summary table (user_genome, classification,
+                        ...) (default: None)
+  --drep DREP_FILE      dRep cluster table Cdb.csv (genome, secondary_cluster,
+                        ...) (default: None)
+  --quast QUAST_FILE    QUAST report with one column per MAG (default: None)
+  --bakta BAKTA_FILE    Bakta summary with one column per MAG (default: None)
   --metadata METADATA_FILE
+                        Sample metadata table; the first column holds the
+                        sample names used in the CoverM columns (default:
+                        None)
   --pathways PATHWAYS_FILE
+                        KEGG pathway completeness table (contig,
+                        module_accession, completeness, pathway_name,
+                        pathway_class) (default: None)
   --rank {domain,phylum,class,order,family,genus,species}
+                        Rank of the second Sankey diagram
+                        (sankey_plot_rank_filtered), which links each MAG to
+                        its taxon at this rank (default: phylum)
   --tax_level {domain,phylum,class,order,family,genus,species}
+                        GTDB rank used to group and colour the MAGs (default:
+                        None)
   --tax_levels {domain,phylum,class,order,family,genus,species} [{domain,phylum,class,order,family,genus,species} ...]
-  --top_n N
-  --quality
+                        GTDB ranks shown as taxonomy columns next to the
+                        clusters (default: ['phylum', 'genus'])
+  --top_n N             Number of largest dRep clusters (or most frequent
+                        categories) shown; minimum 5 (default: 30)
+  --quality             Colour the completeness/contamination plot by MAG
+                        quality (default: False)
   --require_quality     Only show clusters whose representative has CheckM2
-                        data
-  --tax
-  --meta_col META_COL
+                        data (default: False)
+  --tax                 Colour the completeness/contamination plot by taxonomy
+                        (default: False)
+  --meta_col META_COL   Metadata column used for colouring (name or 1-based
+                        column index) (default: None)
   --meta_cols META_COLS [META_COLS ...]
+                        Metadata columns shown as annotation bars (names or
+                        1-based column indices) (default: None)
   --meta_bin_width META_BIN_WIDTH
+                        Bin width used to group numeric metadata values
+                        (default: 5.0)
   --column_choice METRIC [METRIC ...]
+                        Unused; accepted for backwards compatibility (default:
+                        None)
   --color_by {quality,tax,meta}
+                        Colouring of the completeness/contamination plot
+                        (default: None)
   --tax_levels_space TAX_LEVELS_SPACE
+                        Spacing between taxonomy columns (cm) (default: 0.8)
   --fig_size WIDTH HEIGHT
-                        Figure size in cm (width height)
+                        Figure size in cm (width height) (default: None)
   -o OUTPUT, --output OUTPUT
+                        Output folder (created if it does not exist) (default:
+                        None)
   --format {png,pdf,svg}
+                        Output file format (default: png)
   --top_bar_height TOP_BAR_HEIGHT
-  --hspace HSPACE
+                        Height of the MAGs-per-taxon bar chart (default: 1.8)
+  --hspace HSPACE       Vertical gap between the bar chart and the heatmap
+                        (default: 0.6)
   --heatmap_width HEATMAP_WIDTH
+                        Width of the heatmap (default: 28.0)
   --spacer_legend SPACER_LEGEND
+                        Gap between the legend and the metadata bars (default:
+                        0.8)
   --spacer_meta SPACER_META
+                        Gap between the metadata bars and the heatmap
+                        (default: 5.0)
   --spacer_heatmap SPACER_HEATMAP
-  --legend LEGEND
+                        Gap between the heatmap and the MAGs-per-sample
+                        histogram (default: 0.25)
+  --legend LEGEND       Width of the legend column (default: 6.4)
   --meta_bar_add META_BAR_ADD
+                        Extra width added to the metadata bars (default: 3.8)
   --top_bar_spacer TOP_BAR_SPACER
-  --max_col MAX_COL
-  --no_log
+                        Gap above the MAGs-per-taxon bar chart (default: 0.0)
+  --max_col MAX_COL     Show the N most abundant taxa as columns and pool the
+                        rest as 'Others' (default: 10)
+  --no_log              Plot MAGs per taxon on a linear instead of a log10
+                        axis (default: False)
   --top_modules TOP_MODULES
+                        Number of KEGG modules shown ('none' for all)
+                        (default: 35)
   --mode {mean,variance}
-  --show_module_labels
+                        Module selection: mean = core modules, variance =
+                        differential modules (default: mean)
+  --show_module_labels  Unused; accepted for backwards compatibility (see
+                        --module_label) (default: False)
   --row_fontsize ROW_FONTSIZE
+                        Font size (pt) of the MAG names on the rows (default:
+                        8)
   --top_representatives TOP_REPRESENTATIVES
+                        Limit the heatmap to the representatives of the N
+                        largest clusters (default: None)
 ```
