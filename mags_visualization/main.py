@@ -12,6 +12,7 @@ from .heatmap import mag_heatmap
 from .drep_cluster_plot import drep_cluster_plot
 from .drep_cluster_func import drep_cluster_functional_plot
 from .pathway_module_heatmap import pathway_module_heatmap
+from .overview import OverviewOptions, PANELS, overview_figure
 
 
 def positive_int(value):
@@ -370,6 +371,74 @@ def build_parser():
     p.add_argument("-o", "--output", required=True, dest="output")
 
     # ---- all (optional) ----
+    # ---- overview-figure ----
+    p = sub.add_parser(
+        "overview-figure",
+        help="Page-width multi-panel overview figure (abundance, quality, taxonomy, function).",
+        description=(
+            "Draw a publication-ready overview of a MAG catalogue at its final print size. "
+            "Panels: abundance (relative abundance per sample and taxon, with sample metadata), "
+            "quality (completeness vs contamination), taxonomy (flow diagram between two ranks) and "
+            "function (largest dRep clusters with KEGG module completeness). Panels whose inputs are "
+            "missing are skipped; use --panels to draw a subset or a single panel."
+        ),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    g = p.add_argument_group("inputs")
+    g.add_argument("--gtdb", required=True, dest="gtdb_file", help="GTDB-Tk summary table (all panels)")
+    g.add_argument("--coverm", dest="coverm_path", default=None,
+                   help="CoverM relative abundance table, or a folder of tables (abundance panel)")
+    g.add_argument("--checkm2", dest="checkm2_file", default=None, help="CheckM2 quality report (quality panel)")
+    g.add_argument("--checkm", dest="checkm_file", default=None,
+                   help="CheckM quality report, used for the quality panel if no CheckM2 report is given")
+    g.add_argument("--drep", dest="drep_file", default=None, help="dRep Cdb table (function panel)")
+    g.add_argument("--pathways", dest="pathways_file", default=None,
+                   help="KEGG pathway completeness table (function panel)")
+    g.add_argument("--metadata", dest="metadata_file", default=None,
+                   help="Sample metadata; the first column must hold the CoverM sample names (abundance panel)")
+    g = p.add_argument_group("layout")
+    g.add_argument("--panels", nargs="+", choices=PANELS, default=PANELS, help="Panels to draw, in figure order")
+    g.add_argument("--width_cm", type=float, default=17.0, help="Figure width in cm (17 = full page width)")
+    g.add_argument("--font_size", type=float, default=8.0,
+                   help="Base font size in pt at the final figure size; dense labels use 85%% of it")
+    g.add_argument("--color_rank", choices=tax_levels, default="phylum",
+                   help="Rank whose taxa get one colour each, shared by all panels")
+    g = p.add_argument_group("abundance panel")
+    g.add_argument("--tax_level", choices=tax_levels, default="phylum", help="Rank of the heatmap rows")
+    g.add_argument("--max_taxa", type=int, default=10, help="Show the N most abundant taxa, pool the rest as Other")
+    g.add_argument("--meta_cols", nargs="+", default=None,
+                   help="Metadata columns shown as rows above the heatmap (names or 1-based indices). "
+                        "Boolean columns become filled/empty squares, others coloured squares")
+    g.add_argument("--meta_labels", nargs="+", default=None, help="Display names for --meta_cols (same order)")
+    g.add_argument("--sample_label_col", default=None, help="Metadata column used as sample label")
+    g.add_argument("--sample_group_col", default=None,
+                   help="Metadata column grouping the samples (sorted together, separated by a gap)")
+    g.add_argument("--group_order", nargs="+", default=None, help="Order of the sample groups")
+    g = p.add_argument_group("quality panel")
+    g.add_argument("--hq_completeness", type=float, default=90.0, help="Minimum completeness of high-quality MAGs")
+    g.add_argument("--hq_contamination", type=float, default=5.0, help="Maximum contamination of high-quality MAGs")
+    g.add_argument("--mq_completeness", type=float, default=70.0, help="Minimum completeness of medium-quality MAGs")
+    g.add_argument("--mq_contamination", type=float, default=None,
+                   help="Maximum contamination of medium-quality MAGs (no limit if unset)")
+    g.add_argument("--max_contamination_axis", type=float, default=8.0,
+                   help="Upper limit of the contamination axis; MAGs above it are drawn as triangles at the edge "
+                        "and their values listed in the legend")
+    g = p.add_argument_group("taxonomy panel")
+    g.add_argument("--flow_ranks", nargs=2, choices=tax_levels, default=["phylum", "genus"],
+                   metavar=("FROM", "TO"), help="First and last rank of the flow diagram")
+    g = p.add_argument_group("function panel")
+    g.add_argument("--top_n", type=int, default=30, help="Number of largest dRep clusters shown")
+    g.add_argument("--top_modules", type=int, default=35, help="Number of KEGG modules shown")
+    g.add_argument("--module_mode", choices=["mean", "variance"], default="mean",
+                   help="Select modules with the highest mean completeness (core functions) or variance "
+                        "(differences between clusters)")
+    g = p.add_argument_group("output")
+    g.add_argument("--format", nargs="+", choices=["png", "pdf", "svg"], default=["png"],
+                   help="One or more output formats")
+    g.add_argument("--dpi", type=int, default=300, help="Resolution of PNG output")
+    g.add_argument("--prefix", default="overview_figure", help="File name (without extension) inside --output")
+    g.add_argument("-o", "--output", required=True, dest="output", help="Output folder")
+
     p = sub.add_parser("all", help="Run all plots (legacy behaviour).")
     p.add_argument("--coverm", dest="coverm_path", default=None)
     p.add_argument("--checkm", dest="checkm_file", default=None)
@@ -662,6 +731,44 @@ def run_taxa_sankey(args):
     taxa_sanky_rank(dfs["gtdb"], args.output, args.rank, fmt=args.format)
 
 
+def run_overview_figure(args):
+    dfs = load_dfs(
+        coverm=args.coverm_path,
+        checkm=args.checkm_file if args.checkm2_file is None else None,
+        checkm2=args.checkm2_file,
+        gtdb=args.gtdb_file,
+        drep=args.drep_file,
+        metadata=args.metadata_file,
+        pathways=args.pathways_file,
+    )
+    check_path(args.output)
+    meta_cols = args.meta_cols
+    if dfs.get("metadata") is not None and is_index_input(meta_cols):
+        meta_cols = resolve_col_names(dfs["metadata"], meta_cols)
+    try:
+        opt = OverviewOptions(
+            panels=args.panels, width_cm=args.width_cm, font_size=args.font_size,
+            abundance_rank=args.tax_level, max_taxa=args.max_taxa, meta_cols=meta_cols,
+            meta_labels=args.meta_labels, sample_label_col=args.sample_label_col,
+            sample_group_col=args.sample_group_col, group_order=args.group_order,
+            hq_completeness=args.hq_completeness, hq_contamination=args.hq_contamination,
+            mq_completeness=args.mq_completeness, mq_contamination=args.mq_contamination,
+            max_contamination_axis=args.max_contamination_axis, flow_ranks=tuple(args.flow_ranks),
+            top_n=args.top_n, top_modules=args.top_modules, module_mode=args.module_mode,
+            color_rank=args.color_rank,
+        )
+        coverm = merged_coverm(dfs["coverm"]) if dfs.get("coverm") else None
+        quality = dfs.get("checkm2") if dfs.get("checkm2") is not None else dfs.get("checkm")
+        reset_matplotlib()
+        overview_figure(
+            os.path.join(args.output, args.prefix), opt, coverm=coverm, gtdb=dfs["gtdb"], quality=quality,
+            drep=dfs.get("drep"), pathways=dfs.get("pathways"), metadata=dfs.get("metadata"),
+            formats=args.format, dpi=args.dpi,
+        )
+    except ValueError as e:
+        raise SystemExit(f"[ERROR] {e}")
+
+
 def run_all(args):
     """
     Runs all based on provided inputs.
@@ -808,6 +915,8 @@ def main(argv=None):
         run_comp_conta(args)
     elif args.command == "taxa-sankey":
         run_taxa_sankey(args)
+    elif args.command == "overview-figure":
+        run_overview_figure(args)
     elif args.command == "all":
         run_all(args)
     else:
