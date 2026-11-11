@@ -427,10 +427,12 @@ abundance panel:
                         Display names for --meta_cols (same order) (default:
                         None)
   --sample_label_col SAMPLE_LABEL_COL
-                        Metadata column used as sample label (default: None)
+                        Metadata column used as sample label (name or 1-based
+                        index) (default: None)
   --sample_group_col SAMPLE_GROUP_COL
                         Metadata column grouping the samples (sorted together,
-                        separated by a gap) (default: None)
+                        separated by a gap); name or 1-based index (default:
+                        None)
   --group_order GROUP_ORDER [GROUP_ORDER ...]
                         Order of the sample groups (default: None)
 

@@ -470,9 +470,11 @@ def build_parser():
                    help="Metadata columns shown as rows above the heatmap (names or 1-based indices). "
                         "Boolean columns become filled/empty squares, others coloured squares")
     g.add_argument("--meta_labels", nargs="+", default=None, help="Display names for --meta_cols (same order)")
-    g.add_argument("--sample_label_col", default=None, help="Metadata column used as sample label")
+    g.add_argument("--sample_label_col", default=None,
+                   help="Metadata column used as sample label (name or 1-based index)")
     g.add_argument("--sample_group_col", default=None,
-                   help="Metadata column grouping the samples (sorted together, separated by a gap)")
+                   help="Metadata column grouping the samples (sorted together, separated by a gap); "
+                        "name or 1-based index")
     g.add_argument("--group_order", nargs="+", default=None, help="Order of the sample groups")
     g = p.add_argument_group("quality panel")
     g.add_argument("--hq_completeness", type=float, default=90.0, help="Minimum completeness of high-quality MAGs")
@@ -804,14 +806,21 @@ def run_overview_figure(args):
     )
     check_path(args.output)
     meta_cols = args.meta_cols
-    if dfs.get("metadata") is not None and is_index_input(meta_cols):
-        meta_cols = resolve_col_names(dfs["metadata"], meta_cols)
+    label_col, group_col = args.sample_label_col, args.sample_group_col
+    if dfs.get("metadata") is not None:
+        # Galaxy data_column parameters pass 1-based indices
+        if is_index_input(meta_cols):
+            meta_cols = resolve_col_names(dfs["metadata"], meta_cols)
+        if label_col is not None and is_index_input([label_col]):
+            label_col = resolve_col_names(dfs["metadata"], [label_col])[0]
+        if group_col is not None and is_index_input([group_col]):
+            group_col = resolve_col_names(dfs["metadata"], [group_col])[0]
     try:
         opt = OverviewOptions(
             panels=args.panels, width_cm=args.width_cm, font_size=args.font_size,
             abundance_rank=args.tax_level, max_taxa=args.max_taxa, meta_cols=meta_cols,
-            meta_labels=args.meta_labels, sample_label_col=args.sample_label_col,
-            sample_group_col=args.sample_group_col, group_order=args.group_order,
+            meta_labels=args.meta_labels, sample_label_col=label_col,
+            sample_group_col=group_col, group_order=args.group_order,
             hq_completeness=args.hq_completeness, hq_contamination=args.hq_contamination,
             mq_completeness=args.mq_completeness, mq_contamination=args.mq_contamination,
             max_contamination_axis=args.max_contamination_axis, flow_ranks=tuple(args.flow_ranks),

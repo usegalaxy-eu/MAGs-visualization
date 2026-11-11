@@ -198,7 +198,7 @@ def test_cli_overview_figure(tmp_path):
         "--checkm2", str(TEST_DATA / "checkm2.tsv"), "--drep", str(TEST_DATA / "drep.csv"),
         "--pathways", str(TEST_DATA / "kegg_pathway_completeness.tsv"),
         "--metadata", str(TEST_DATA / "metadata.tsv"), "--meta_cols", "7", "8", "9",
-        "--sample_label_col", "Label", "--sample_group_col", "Condition", "--top_n", "15",
+        "--sample_label_col", "10", "--sample_group_col", "5", "--top_n", "15",
         "--format", "png", "pdf", "--prefix", "bee", "-o", str(out),
     ])
     assert res.returncode == 0, res.stderr + res.stdout
