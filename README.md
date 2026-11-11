@@ -91,6 +91,41 @@ run into the next one. The four panels are:
 `--color_rank` colours are shared by all panels. Use `--panels` to draw a subset, e.g. `--panels quality`
 for a single plot.
 
+#### Overview style of the single plots
+
+`sample-heatmap`, `comp-conta` (`--mode quality`), `taxa-sankey` and `drep-cluster-func` draw the matching
+overview panel instead of their original plot with `--style overview` (default: `--style classic`, unchanged):
+
+| Subcommand | Panel | Output file |
+|---|---|---|
+| `sample-heatmap --style overview` | abundance | `heatmap_overview_<tax_level>.<format>` |
+| `comp-conta --style overview` | quality (one per CheckM/CheckM2 report) | `comp_conta_overview_checkm[2].<format>` |
+| `taxa-sankey --style overview` | taxonomy | `sankey_plot_overview.<format>` |
+| `drep-cluster-func --style overview` | function (`--mode both` gives two) | `drep_cluster_functional_{core,difference}_overview_top<N>.<format>` |
+
+They accept the same layout and panel options as `overview-figure` (listed below).
+
+#### Changing the overview figure
+
+| Option | Effect | Default |
+|---|---|---|
+| `--panels` | Panels to draw (`abundance quality taxonomy function`) | all |
+| `--width_cm` | Width at print size; the height follows from the content | 17 |
+| `--font_size` | Base font size in pt (dense labels use 85 %) | 8 |
+| `--color_rank` | Rank whose taxa get one colour, shared by all panels | phylum |
+| `--format`, `--dpi`, `--prefix` | Output formats (several at once), PNG resolution, file name | png, 300, overview_figure |
+| `--tax_level`, `--max_taxa` | Rank of the abundance heatmap and number of taxa before pooling as "Other" | phylum, 10 |
+| `--meta_cols`, `--meta_labels` | Metadata rows above the heatmap and their display names | – |
+| `--sample_label_col`, `--sample_group_col`, `--group_order` | Sample labels, grouping and group order | sample names |
+| `--hq_completeness`, `--hq_contamination` | High-quality thresholds | 90, 5 |
+| `--mq_completeness`, `--mq_contamination` | Medium-quality thresholds (MIMAG: 50, 10) | 70, none |
+| `--max_contamination_axis` | Upper limit of the contamination axis | 8 |
+| `--flow_ranks FROM TO` | Ranks of the flow diagram | phylum genus |
+| `--top_n`, `--top_modules`, `--module_mode` | Clusters and KEGG modules shown, module selection (`mean`/`variance`) | 30, 35, mean |
+
+To make a tall figure fit a page, lower `--top_n`, stop the flow diagram at a higher rank or reduce
+`--font_size`; to make it wider or narrower, change `--width_cm` (text keeps its size).
+
 ## Input files
 
 | Option | File | Produced by |

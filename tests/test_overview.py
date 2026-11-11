@@ -218,3 +218,55 @@ def test_cli_overview_bad_metadata_column(tmp_path):
                    "--panels", "abundance", "-o", str(tmp_path)])
     assert res.returncode != 0
     assert "not found" in res.stdout + res.stderr
+
+
+# --------------------------------------------------------------------------- --style overview of single plots
+@pytest.mark.parametrize("args, expected", [
+    (["sample-heatmap", "--coverm", "coverm.tsv", "--gtdb", "gtdb.tsv", "--metadata", "metadata.tsv",
+      "--meta_cols", "7", "8", "9", "--sample_label_col", "Label", "--sample_group_col", "Condition"],
+     ["heatmap_overview_phylum.png"]),
+    (["comp-conta", "--tools", "both", "--checkm", "checkm.tsv", "--checkm2", "checkm2.tsv", "--mq_contamination", "10"],
+     ["comp_conta_overview_checkm.png", "comp_conta_overview_checkm2.png"]),
+    (["taxa-sankey", "--gtdb", "gtdb.tsv", "--flow_ranks", "class", "species", "--format", "svg"],
+     ["sankey_plot_overview.svg"]),
+    (["drep-cluster-func", "--drep", "drep.csv", "--gtdb", "gtdb.tsv", "--pathways", "kegg_pathway_completeness.tsv",
+      "--mode", "both", "--top_n", "10"],
+     ["drep_cluster_functional_core_overview_top10.png", "drep_cluster_functional_difference_overview_top10.png"]),
+])
+def test_single_plots_overview_style(tmp_path, args, expected):
+    files = {"coverm.tsv", "gtdb.tsv", "metadata.tsv", "checkm.tsv", "checkm2.tsv", "drep.csv",
+             "kegg_pathway_completeness.tsv"}
+    args = [str(TEST_DATA / a) if a in files else a for a in args]
+    res = run_cli([*args, "--style", "overview", "--width_cm", "10", "-o", str(tmp_path)])
+    assert res.returncode == 0, res.stderr + res.stdout
+    for name in expected:
+        assert (tmp_path / name).exists(), sorted(p.name for p in tmp_path.iterdir())
+    png = [tmp_path / n for n in expected if n.endswith(".png")]
+    for f in png:
+        assert _figure_size_cm(f)[0] == pytest.approx(10.0, abs=0.1)
+
+
+@pytest.mark.parametrize("args, message", [
+    (["comp-conta", "--tools", "checkm2", "--checkm2", "checkm2.tsv", "--mode", "tax", "--gtdb", "gtdb.tsv"],
+     "--mode quality only"),
+    (["taxa-sankey", "--gtdb", "gtdb.tsv", "--format", "html"], "png, pdf or svg"),
+])
+def test_overview_style_rejects_unsupported_modes(tmp_path, args, message):
+    args = [str(TEST_DATA / a) if a.endswith((".tsv", ".csv")) else a for a in args]
+    res = run_cli([*args, "--style", "overview", "-o", str(tmp_path)])
+    assert res.returncode != 0
+    assert message in res.stdout + res.stderr
+
+
+def test_classic_style_is_default(tmp_path):
+    res = run_cli(["sample-heatmap", "--coverm", str(TEST_DATA / "coverm.tsv"), "--gtdb", str(TEST_DATA / "gtdb.tsv"),
+                   "-o", str(tmp_path)])
+    assert res.returncode == 0, res.stderr
+    assert (tmp_path / "heatmap_with_bars_phylum.png").exists()
+
+
+def test_quality_panel_without_gtdb(tmp_path, data):
+    overview_figure(tmp_path / "q", OverviewOptions(panels=["quality"]), quality=data["quality"])
+    assert (tmp_path / "q.png").exists()
+    with pytest.raises(ValueError, match="GTDB"):
+        overview_figure(tmp_path / "t", OverviewOptions(panels=["taxonomy"]))

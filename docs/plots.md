@@ -8,6 +8,10 @@ Every plot of `mags-visualization`, made from the bundled `test-data` (bee gut m
 |---|---|
 | [Overview figure (all panels)](#overview-figure) | `overview-figure` |
 | [Overview figure, single panel](#overview-figure-single-panel) | `overview-figure` |
+| [Sample heatmap, overview style](#sample-heatmap-overview-style) | `sample-heatmap` |
+| [Completeness vs contamination, overview style](#comp-conta-overview-style) | `comp-conta` |
+| [Taxonomy flow diagram, overview style](#taxa-sankey-overview-style) | `taxa-sankey` |
+| [dRep clusters with KEGG modules, overview style](#drep-cluster-func-overview-style) | `drep-cluster-func` |
 | [Sample heatmap](#sample-heatmap) | `sample-heatmap` |
 | [Completeness vs contamination, coloured by quality](#comp-conta-quality) | `comp-conta` |
 | [Completeness vs contamination, coloured by taxonomy](#comp-conta-tax) | `comp-conta` |
@@ -56,6 +60,78 @@ mags-visualization overview-figure \
 ```
 
 ![overview_figure](gallery/overview-figure-single-panel/overview_figure.png)
+
+<a id="sample-heatmap-overview-style"></a>
+## Sample heatmap, overview style
+
+`--style overview` draws the abundance panel of the overview figure on its own, at print size.
+
+```bash
+mags-visualization sample-heatmap \
+  --style overview \
+  --coverm test-data/coverm.tsv \
+  --gtdb test-data/gtdb.tsv \
+  --metadata test-data/metadata.tsv \
+  --meta_cols "Infection by Nosema ceranae" "Chronic exposure to neonicotinoid" "Treatment with probiotic" \
+  --meta_labels "N. ceranae" Neonicotinoid Probiotic \
+  --sample_label_col Label \
+  --sample_group_col Condition \
+  --group_order C P T TP N NP NT \
+  --width_cm 12 \
+  -o sample-heatmap-overview-style
+```
+
+![heatmap_overview_phylum](gallery/sample-heatmap-overview-style/heatmap_overview_phylum.png)
+
+<a id="comp-conta-overview-style"></a>
+## Completeness vs contamination, overview style
+
+The quality panel on its own; quality classes are set with `--hq_*`/`--mq_*`, MAGs above `--max_contamination_axis` are marked and listed.
+
+```bash
+mags-visualization comp-conta \
+  --style overview \
+  --tools checkm2 \
+  --checkm2 test-data/checkm2.tsv \
+  --mq_contamination 10 \
+  -o comp-conta-overview-style
+```
+
+![comp_conta_overview_checkm2](gallery/comp-conta-overview-style/comp_conta_overview_checkm2.png)
+
+<a id="taxa-sankey-overview-style"></a>
+## Taxonomy flow diagram, overview style
+
+The taxonomy panel on its own, here from class to species and coloured by class.
+
+```bash
+mags-visualization taxa-sankey \
+  --style overview \
+  --gtdb test-data/gtdb.tsv \
+  --flow_ranks class species \
+  --color_rank class \
+  --format png \
+  -o taxa-sankey-overview-style
+```
+
+![sankey_plot_overview](gallery/taxa-sankey-overview-style/sankey_plot_overview.png)
+
+<a id="drep-cluster-func-overview-style"></a>
+## dRep clusters with KEGG modules, overview style
+
+The function panel on its own, with the 20 largest clusters.
+
+```bash
+mags-visualization drep-cluster-func \
+  --style overview \
+  --drep test-data/drep.csv \
+  --gtdb test-data/gtdb.tsv \
+  --pathways test-data/kegg_pathway_completeness.tsv \
+  --top_n 20 \
+  -o drep-cluster-func-overview-style
+```
+
+![drep_cluster_functional_core_overview_top20](gallery/drep-cluster-func-overview-style/drep_cluster_functional_core_overview_top20.png)
 
 <a id="sample-heatmap"></a>
 ## Sample heatmap

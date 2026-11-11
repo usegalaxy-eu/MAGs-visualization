@@ -368,7 +368,7 @@ class _Abundance:
         n_s, n_t = self.heat.shape[1], self.heat.shape[0]
         label_w = max(len(t) for t in self.heat.index) * o.fs_small * PT_CM * 0.62
         width = label_w + n_s * cell + 0.2 + 1.4
-        height = 1.3 + len(self.meta_rows) * cell * 0.85 + n_t * cell
+        height = 1.1 + len(self.meta_rows) * cell * 0.85 + n_t * cell
         return width, height
 
     def draw(self, fig, spec):
@@ -376,7 +376,7 @@ class _Abundance:
         n_t, n_s = self.heat.shape
         n_m = len(self.meta_rows)
         cell = o.text_h_cm(o.fs_small) * 0.92
-        g = spec.subgridspec(3, 2, height_ratios=[1.3, max(n_m, 0.001) * 0.85, n_t], width_ratios=[n_s * cell, 1.4],
+        g = spec.subgridspec(3, 2, height_ratios=[1.1 / cell, max(n_m, 0.001) * 0.85, n_t], width_ratios=[n_s * cell, 1.4],
                              hspace=0.05, wspace=0.03)
         ax_top = fig.add_subplot(g[0, 0])
         ax_meta = fig.add_subplot(g[1, 0], sharex=ax_top)
@@ -437,7 +437,7 @@ class _Abundance:
 
         # MAGs detected per sample (top) and MAGs per taxon (right)
         ax_top.bar(np.arange(n_s) + 0.5, self.mags_per_sample.values, width=0.72, color="#7A7A7A")
-        ax_top.set_ylabel("MAGs\ndetected", labelpad=2)
+        ax_top.set_ylabel("MAGs\ndetected", rotation=0, ha="right", va="center", labelpad=4)
         ax_top.set_xlim(0, n_s)
         ax_top.tick_params(axis="x", bottom=False, labelbottom=False)
         ax_top.yaxis.set_major_locator(plt.MaxNLocator(3, integer=True))
@@ -810,10 +810,13 @@ def overview_figure(output_prefix, opt: OverviewOptions, coverm=None, gtdb=None,
     Panels whose inputs are missing are skipped with a warning. Returns the list
     of written files.
     """
-    if gtdb is None:
-        raise ValueError("A GTDB-Tk summary (--gtdb) is required for every panel")
-    tax = taxonomy_table(gtdb)
     want = [p for p in PANELS if p in opt.panels]
+    if gtdb is None:
+        if any(p in want for p in ("abundance", "taxonomy", "function")):
+            raise ValueError("A GTDB-Tk summary (--gtdb) is required for the abundance, taxonomy and function panels")
+        tax = pd.DataFrame(columns=RANKS)
+    else:
+        tax = taxonomy_table(gtdb)
     need = {"abundance": coverm, "quality": quality, "taxonomy": True, "function": drep}
     if pathways is None and "function" in want:
         need["function"] = None
