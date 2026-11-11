@@ -14,7 +14,7 @@ install_requires = [
     "numpy",
     "matplotlib",
     "seaborn",
-    "plotly",
+    "plotly<7",
     "kaleido",
     "networkx",
     ]
