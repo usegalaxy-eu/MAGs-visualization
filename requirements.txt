@@ -1,7 +1,6 @@
 pandas
 numpy
-argparse
-plotly
+plotly<7
 kaleido==0.2.1
 matplotlib
 seaborn

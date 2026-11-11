@@ -28,6 +28,8 @@ def run_cli(args: list[str], cwd: Path | None = None) -> subprocess.CompletedPro
         ["taxa-sankey", "--help"],
         ["drep-cluster-annot", "--help"],
         ["drep-cluster-func", "--help"],
+        ["pathway-module-heatmap", "--help"],
+        ["overview-figure", "--help"],
         ["all", "--help"],
     ],
 )
@@ -161,3 +163,37 @@ def test_all_smoke(tmp_path: Path) -> None:
     for path in expected:
         assert path.exists(), f"Missing expected output: {path}"
         assert path.stat().st_size > 0, f"Empty output file: {path}"
+
+def test_pathway_module_heatmap_smoke(tmp_path: Path) -> None:
+    outdir = tmp_path / "pathway-module-heatmap"
+    result = run_cli(
+        [
+            "pathway-module-heatmap",
+            "--drep", str(TEST_DATA / "drep.csv"),
+            "--gtdb", str(TEST_DATA / "gtdb.tsv"),
+            "--pathways", str(TEST_DATA / "kegg_pathway_completeness.tsv"),
+            "--format", "png",
+            "-o", str(outdir),
+        ]
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert any(outdir.glob("*.png"))
+
+
+def test_taxa_sankey_abundance_and_ordered_smoke(tmp_path: Path) -> None:
+    outdir = tmp_path / "taxa-sankey"
+    result = run_cli(
+        [
+            "taxa-sankey",
+            "--gtdb", str(TEST_DATA / "gtdb.tsv"),
+            "--coverm", str(TEST_DATA / "coverm.tsv"),
+            "--font_size", "14",
+            "--order_links",
+            "--format", "html",
+            "-o", str(outdir),
+        ]
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    # --order_links writes the crossing-minimised version instead of the plain one
+    assert (outdir / "sankey_plot_ordered.html").exists()
+    assert (outdir / "sankey_plot_rank_filtered.html").exists()

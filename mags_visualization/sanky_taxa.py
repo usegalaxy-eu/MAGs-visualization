@@ -1,7 +1,10 @@
 import pandas as pd
+import numpy as np
 import plotly.graph_objects as go
 import os
 import re
+
+from mags_visualization.id_normalizer import normalize_genome_id
 
 prefix_map = {
     "d": "domain",
@@ -90,16 +93,158 @@ def is_missing_taxon(value) -> bool:
 
     return False
 
-def generate_taxa_sanky(gtdb, output_path, rank, fmt="html"):
+def _rendered_link_y_keys(node_order, links_df):
+    """
+    Render a minimal sankey (same node values, pad, thickness and size as the
+    final figure) and return, for each link in array order, the rendered
+    vertical position (source mid y, target mid y) extracted from the SVG.
+    Returns None if the number of rendered links does not match the input.
+    """
+    node_map = {n: i for i, n in enumerate(node_order)}
+    tmp = links_df.copy()
+    tmp["source_idx"] = tmp["source"].map(node_map)
+    tmp["target_idx"] = tmp["target"].map(node_map)
+
+    fig = go.Figure(data=[go.Sankey(
+        node=dict(
+            pad=25,
+            thickness=20,
+            line=dict(color="black", width=0),
+            label=[str(n) for n in node_order],
+            color=["rgba(0,0,0,0)"] * len(node_order)
+        ),
+        link=dict(
+            source=tmp["source_idx"],
+            target=tmp["target_idx"],
+            value=tmp["value"]
+        )
+    )])
+    fig.update_layout(width=2000, height=1600)
+
+    svg = fig.to_image(format="svg").decode("utf-8")
+    paths = re.findall(r'<path class="sankey-link"[^>]*d="([^"]+)"', svg)
+    if len(paths) != len(links_df):
+        return None
+
+    keys = []
+    for d in paths:
+        nums = [float(v) for v in re.findall(r"[-.\de+]+", d)]
+        sy_top, sy_bot = nums[1], nums[15]
+        ty_top, ty_bot = nums[7], nums[9]
+        keys.append(((sy_top + sy_bot) / 2, (ty_top + ty_bot) / 2))
+    return keys
+
+
+def _minimize_crossings(links_df):
+    """
+    Reorder nodes within each column and re-sort links so that d3-sankey
+    produces as few crossings as possible.
+
+    d3-sankey stacks the ribbons leaving a node strictly in array order, so
+    the only way to keep them parallel is to sort the links by their final
+    rendered vertical position. Node positions are independent of the link
+    order, so we bootstrap: render a temporary sankey, read the rendered
+    (source y, target y) of every link back out of the SVG, sort the links by
+    those coordinates, and repeat until the order is stable.
+
+    Nodes are ordered per column with the barycenter heuristic (median
+    position of neighbours in the adjacent column) first.
+    """
+    layers = ["domain", "phylum", "class", "order", "family", "genus", "species", "_total"]
+
+    all_nodes = pd.Index(pd.concat([links_df["source"], links_df["target"]]).unique())
+
+    def layer_of(node):
+        if node == "_total":
+            return len(layers) - 1
+        return layers.index(str(node).split("|")[0])
+
+    pred = {n: set() for n in all_nodes}
+    succ = {n: set() for n in all_nodes}
+    for _, row in links_df.iterrows():
+        succ[row["source"]].add(row["target"])
+        pred[row["target"]].add(row["source"])
+
+    columns = [[] for _ in layers]
+    for n in all_nodes:
+        columns[layer_of(n)].append(n)
+
+    # barycenter sweeps (median of neighbour positions in the adjacent column)
+    for _ in range(10):
+        # left -> right, order each column by its predecessors
+        for L in range(1, len(layers)):
+            pos_prev = {n: i for i, n in enumerate(columns[L - 1])}
+
+            def key(n):
+                ns = [pos_prev[m] for m in pred[n] if m in pos_prev]
+                if ns:
+                    return (float(np.median(ns)), 0)
+                ns2 = [pos_prev[m] for m in succ[n] if m in pos_prev]
+                return (float(np.median(ns2)) if ns2 else 0.0, 1)
+
+            columns[L] = sorted(columns[L], key=key)
+
+        # right -> left, order each column by its successors
+        for L in range(len(layers) - 2, -1, -1):
+            pos_next = {n: i for i, n in enumerate(columns[L + 1])}
+
+            def key(n):
+                ns = [pos_next[m] for m in succ[n] if m in pos_next]
+                if ns:
+                    return (float(np.median(ns)), 0)
+                ns2 = [pos_next[m] for m in pred[n] if m in pos_next]
+                return (float(np.median(ns2)) if ns2 else 0.0, 1)
+
+            columns[L] = sorted(columns[L], key=key)
+
+    ordered_nodes = [n for col in columns for n in col]
+    node_map = {name: i for i, name in enumerate(ordered_nodes)}
+
+    links_df = links_df.copy()
+    links_df["source_idx"] = links_df["source"].map(node_map)
+    links_df["target_idx"] = links_df["target"].map(node_map)
+
+    # bootstrap link sort on the rendered vertical positions
+    for _ in range(4):
+        keys = _rendered_link_y_keys(ordered_nodes, links_df)
+        if keys is None:
+            break
+        order = sorted(range(len(keys)), key=lambda i: keys[i])
+        reordered = links_df.iloc[order]
+        if reordered["source_idx"].tolist() == links_df["source_idx"].tolist() and \
+           reordered["target_idx"].tolist() == links_df["target_idx"].tolist():
+            links_df = reordered
+            break
+        links_df = reordered.reset_index(drop=True)
+
+    return ordered_nodes, links_df
+
+
+def generate_taxa_sanky(gtdb, output_path, rank, fmt="html", coverm=None, font_size=13, order_links=False):
     if rank is not None:
         rank = normalize_rank(rank)
 
     tax_columns = ["domain", "phylum", "class", "order", "family", "genus", "species"]
 
+    # optional per-MAG abundance from a CoverM table (summed over samples);
+    # when given, link values (and thus bar sizes) are abundance-based
+    mag_abundance = {}
+    if coverm is not None:
+        cov = coverm.copy()
+        if cov.index.name == "Genome":
+            cov = cov.reset_index()
+        elif "Genome" not in cov.columns:
+            cov = cov.reset_index()
+            cov = cov.rename(columns={cov.columns[0]: "Genome"})
+        sample_cols = cov.select_dtypes(include="number").columns
+        cov["user_genome"] = cov["Genome"].map(normalize_genome_id)
+        mag_abundance = dict(zip(cov["user_genome"], cov[sample_cols].sum(axis=1)))
+
     tax_split = gtdb.reset_index()["classification"].str.split(";", expand=True)
     tax_split.columns = tax_columns[:tax_split.shape[1]]
     tax_split = tax_split.reindex(columns=tax_columns)
     tax_split = tax_split.replace({"": None, " ": None})
+    tax_split["user_genome"] = gtdb.reset_index().iloc[:, 0]
 
     if rank is not None and rank not in tax_columns:
         raise ValueError(f"Requested rank '{rank}' is not in parsed columns {tax_columns}")
@@ -107,6 +252,11 @@ def generate_taxa_sanky(gtdb, output_path, rank, fmt="html"):
     links = []
 
     for _, row in tax_split.iterrows():
+        if mag_abundance:
+            value = mag_abundance.get(normalize_genome_id(row["user_genome"]), 0.0)
+        else:
+            value = 1.0
+
         valid_ranks = []
 
         # collect only real classified ranks
@@ -125,7 +275,7 @@ def generate_taxa_sanky(gtdb, output_path, rank, fmt="html"):
             current_node = f"{current_rank}|{current_value}"
 
             if previous_node is not None:
-                links.append((previous_node, current_node))
+                links.append((previous_node, current_node, value))
 
             previous_node = current_node
 
@@ -136,22 +286,43 @@ def generate_taxa_sanky(gtdb, output_path, rank, fmt="html"):
 
             if last_rank == "genus":
                 unknown_species_node = f"species|unknown_from|{last_rank}|{last_value}"
-                links.append((previous_node, unknown_species_node))
+                links.append((previous_node, unknown_species_node, value))
 
     if not links:
         raise ValueError("No classified taxonomy paths were found for Sankey plotting.")
 
     links_df = (
-        pd.DataFrame(links, columns=["source", "target"])
-        .value_counts()
-        .reset_index(name="count")
+        pd.DataFrame(links, columns=["source", "target", "value"])
+        .groupby(["source", "target"], as_index=False)["value"].sum()
     )
 
-    nodes = pd.Index(pd.concat([links_df["source"], links_df["target"]]).unique())
-    node_map = {name: i for i, name in enumerate(nodes)}
+    # invisible "total" sink column right of species: plotly draws labels on
+    # the LEFT for the rightmost column, so species needs a real column after
+    # it (with links, since unlinked nodes are dropped) to keep its labels
+    # on the right
+    total_node = "_total"
+    sink_links = []
+    species_nodes = links_df.loc[
+        links_df["target"].str.startswith("species|"), "target"
+    ].unique()
+    for species_node in species_nodes:
+        value = links_df.loc[links_df["target"] == species_node, "value"].sum()
+        sink_links.append({"source": species_node, "target": total_node, "value": value})
 
-    links_df["source_idx"] = links_df["source"].map(node_map)
-    links_df["target_idx"] = links_df["target"].map(node_map)
+    if sink_links:
+        links_df = pd.concat([
+            links_df,
+            pd.DataFrame(sink_links)
+        ], ignore_index=True)
+
+    if order_links:
+        nodes, links_df = _minimize_crossings(links_df)
+    else:
+        nodes = pd.Index(pd.concat([links_df["source"], links_df["target"]]).unique())
+        node_map = {name: i for i, name in enumerate(nodes)}
+        links_df = links_df.copy()
+        links_df["source_idx"] = links_df["source"].map(node_map)
+        links_df["target_idx"] = links_df["target"].map(node_map)
 
     rank_colors = {
         "domain": "#1f77b4",
@@ -167,6 +338,11 @@ def generate_taxa_sanky(gtdb, output_path, rank, fmt="html"):
     node_colors = []
 
     for node in nodes:
+        if node == total_node:
+            node_colors.append("rgba(0,0,0,0)")
+            clean_labels.append("")
+            continue
+
         parts = str(node).split("|")
         node_rank = parts[0]
         node_colors.append(rank_colors.get(node_rank, "lightgray"))
@@ -186,30 +362,40 @@ def generate_taxa_sanky(gtdb, output_path, rank, fmt="html"):
         else:
             clean_labels.append(node)
 
+    link_colors = [
+        "rgba(0,0,0,0)" if target == total_node else "rgba(0,0,0,0.3)"
+        for target in links_df["target"]
+    ]
+
     fig = go.Figure(data=[go.Sankey(
         node=dict(
-            pad=15,
+            pad=25,
             thickness=20,
-            line=dict(color="black", width=0.5),
+            # per-node line arrays are ignored by plotly's sankey trace, so a
+            # transparent sink node would still get a visible outline; width=0
+            # removes the outline globally (the sink fill stays transparent)
+            line=dict(color="black", width=0),
             label=clean_labels,
             color=node_colors
         ),
         link=dict(
             source=links_df["source_idx"],
             target=links_df["target_idx"],
-            value=links_df["count"]
+            value=links_df["value"],
+            color=link_colors
         )
     )])
 
     fig.update_layout(
         title_text="Taxonomic Classification Sankey",
-        font=dict(size=10),
-        width=1600,
-        height=900
+        font=dict(size=font_size),
+        width=2000,
+        height=1600
     )
 
     os.makedirs(output_path, exist_ok=True)
-    out_file = os.path.join(output_path, f"sankey_plot.{fmt}")
+    stem = "sankey_plot_ordered" if order_links else "sankey_plot"
+    out_file = os.path.join(output_path, f"{stem}.{fmt}")
 
     if fmt == "html":
         fig.write_html(out_file)

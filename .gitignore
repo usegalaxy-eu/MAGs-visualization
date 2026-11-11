@@ -6,3 +6,8 @@ dist/
 build/
 .venv/
 venv/
+# generated outputs
+test-plots/
+.pytest_cache/
+.mypy_cache/
+dummy
