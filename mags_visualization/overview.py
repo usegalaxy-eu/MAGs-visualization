@@ -24,7 +24,9 @@ import pandas as pd
 from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch, PathPatch, Rectangle
+from matplotlib.font_manager import FontProperties
 from matplotlib.path import Path as MPath
+from matplotlib.textpath import TextPath
 
 from .drep_cluster_func import prepare_cluster_data, prepare_pathway_matrix
 from .id_normalizer import normalize_genome_id
@@ -236,38 +238,47 @@ def taxonomy_flow(tax: pd.DataFrame, ranks: list[str]):
     return columns, values, children
 
 
-def spread_labels(y: np.ndarray, min_gap: float, lo: float, hi: float) -> np.ndarray:
-    """Move 1-D label positions apart by at least ``min_gap`` within [lo, hi].
+def text_w_cm(texts, size_pt: float, italic: bool = False, bold: bool = False) -> float:
+    """Width (cm) of the widest of ``texts`` at ``size_pt``, measured from the font outlines."""
+    prop = FontProperties(size=size_pt, style="italic" if italic else "normal",
+                          weight="bold" if bold else "normal")
+    widths = [TextPath((0, 0), str(t), prop=prop).get_extents().width for t in texts if str(t)]
+    return max(widths, default=0.0) * PT_CM
 
-    Labels keep their order; overlapping runs are centred on their mean target.
+
+def _spec_width_cm(fig, spec) -> float:
+    """Width (cm) that a gridspec cell gets in ``fig``."""
+    return spec.get_position(fig).width * fig.get_figwidth() * 2.54
+
+
+def spread_labels(y: np.ndarray, min_gap: float, lo: float, hi: float) -> np.ndarray:
+    """Move 1-D label positions apart by at least ``min_gap``, keeping their order.
+
+    One pass pushes labels down from the top, one pushes them up from the bottom (``hi``/``lo``
+    bound the passes); the mean of both keeps every gap and stays close to the targets.
     """
     y = np.asarray(y, dtype=float)
+    if len(y) < 2:
+        return y.copy()
     order = np.argsort(y, kind="stable")
-    target = y[order]
-    pos = target.copy()
-    for _ in range(200):
-        moved = False
-        # build clusters of labels that are too close and centre them
-        start = 0
-        while start < len(pos):
-            end = start
-            while end + 1 < len(pos) and pos[end + 1] - pos[end] < min_gap - 1e-9:
-                end += 1
-            if end > start:
-                centre = target[start:end + 1].mean()
-                span = (end - start) * min_gap
-                new = centre - span / 2 + np.arange(end - start + 1) * min_gap
-                if not np.allclose(new, pos[start:end + 1]):
-                    pos[start:end + 1] = new
-                    moved = True
-            start = end + 1
-        # keep inside bounds
-        if pos[0] < lo:
-            pos += lo - pos[0]
-        if pos[-1] > hi:
-            pos -= pos[-1] - hi
-        if not moved:
-            break
+    t = y[order]
+    n = len(t)
+    if (n - 1) * min_gap >= hi - lo:  # no room to keep targets: spread evenly
+        span = (n - 1) * min_gap
+        mid = (lo + hi) / 2
+        pos = mid - span / 2 + np.arange(n) * min_gap
+    else:
+        down = t.copy()
+        down[0] = max(down[0], lo)
+        for i in range(1, n):
+            down[i] = max(down[i], down[i - 1] + min_gap)
+        down -= max(0.0, down[-1] - hi)
+        up = t.copy()
+        up[-1] = min(up[-1], hi)
+        for i in range(n - 2, -1, -1):
+            up[i] = min(up[i], up[i + 1] - min_gap)
+        up += max(0.0, lo - up[0])
+        pos = (down + up) / 2
     out = np.empty_like(pos)
     out[order] = pos
     return out
@@ -362,12 +373,23 @@ class _Abundance:
                 raise ValueError(f"Metadata column {col!r} not found; available: {list(self.meta.columns)}")
             self.meta_rows.append((col, to_bool(self.meta[col])))
 
+    def _legend_w(self):
+        """Width (cm) of the legend of categorical metadata rows, drawn right of the bar chart."""
+        o = self.opt
+        cols = [c for c, _ in self.meta_rows]
+        shown = dict(zip(cols, o.meta_labels or cols))
+        names = [str(v) for col, as_bool in self.meta_rows if as_bool is None
+                 for v in [shown[col], *self.meta[col].astype(str).unique()]]
+        if not names:
+            return 0.0
+        return 0.3 + 0.9 * o.fs_small * PT_CM + text_w_cm(names, o.fs_small, bold=True)
+
     def size_cm(self):
         o = self.opt
         cell = o.text_h_cm(o.fs_small) * 0.92
         n_s, n_t = self.heat.shape[1], self.heat.shape[0]
-        label_w = max(len(t) for t in self.heat.index) * o.fs_small * PT_CM * 0.62
-        width = label_w + n_s * cell + 0.2 + 1.4
+        label_w = text_w_cm(self.heat.index, o.fs_small)
+        width = label_w + n_s * cell + 0.2 + 1.4 + self._legend_w()
         height = 1.1 + len(self.meta_rows) * cell * 0.85 + n_t * cell
         return width, height
 
@@ -376,8 +398,9 @@ class _Abundance:
         n_t, n_s = self.heat.shape
         n_m = len(self.meta_rows)
         cell = o.text_h_cm(o.fs_small) * 0.92
-        g = spec.subgridspec(3, 2, height_ratios=[1.1 / cell, max(n_m, 0.001) * 0.85, n_t], width_ratios=[n_s * cell, 1.4],
-                             hspace=0.05, wspace=0.03)
+        leg_w = self._legend_w()  # empty third column reserves the space of the metadata legend
+        g = spec.subgridspec(3, 3, height_ratios=[1.1 / cell, max(n_m, 0.001) * 0.85, n_t],
+                             width_ratios=[n_s * cell, 1.4, max(leg_w, 0.001)], hspace=0.05, wspace=0.03)
         ax_top = fig.add_subplot(g[0, 0])
         ax_meta = fig.add_subplot(g[1, 0], sharex=ax_top)
         ax_h = fig.add_subplot(g[2, 0], sharex=ax_top)
@@ -389,12 +412,16 @@ class _Abundance:
         bounds = [0, 1, 2, 5, 10, 20, 40, 60, 80, 100]
         norm = BoundaryNorm(bounds, 256)
         vals = self.heat.values
+        # numbers must fit a cell; with many samples they get smaller and are left out below 4 pt
+        cell_w = _spec_width_cm(fig, g[2, 0]) / n_s
+        num_fs = min(o.fs_small * 0.82,
+                     o.fs_small * 0.82 * 0.9 * cell_w / max(text_w_cm(["99", "<1"], o.fs_small * 0.82), 1e-6))
         ax_h.imshow(vals, aspect="auto", cmap=cmap, norm=norm, extent=(0, n_s, n_t, 0), interpolation="nearest")
-        for i in range(n_t):
+        for i in range(n_t if num_fs >= 4 else 0):
             for j in range(n_s):
                 v = vals[i, j]
                 txt = f"{v:.0f}" if v >= 1 else ("<1" if v > 0 else "")
-                ax_h.text(j + 0.5, i + 0.5, txt, ha="center", va="center", fontsize=o.fs_small * 0.82,
+                ax_h.text(j + 0.5, i + 0.5, txt, ha="center", va="center", fontsize=num_fs,
                           color="white" if v >= 40 else DARK)
         ax_h.set_yticks(np.arange(n_t) + 0.5)
         ax_h.set_yticklabels(self.heat.index)
@@ -431,9 +458,18 @@ class _Abundance:
         _clean(ax_meta, keep=())
         if n_m == 0:
             ax_meta.set_visible(False)
-        for col, cmap_c in legends:
-            ax_r.legend(handles=[Patch(color=c, label=k) for k, c in cmap_c.items()], title=col,
-                        loc="upper left", bbox_to_anchor=(1.02, 1.0), frameon=False, fontsize=o.fs_small)
+        if legends:  # one legend for all categorical rows, each headed by its (display) name
+            names = dict(zip([c for c, _ in self.meta_rows], o.meta_labels or [c for c, _ in self.meta_rows]))
+            handles = []
+            for col, cmap_c in legends:
+                handles.append(Patch(color="none", label=names[col]))
+                handles += [Patch(color=c, label=k) for k, c in cmap_c.items()]
+            leg = ax_r.legend(handles=handles, loc="upper left", bbox_to_anchor=(1.02, 1.0), frameon=False,
+                              fontsize=o.fs_small, handlelength=0.9, handletextpad=0.4, labelspacing=0.2,
+                              borderaxespad=0.0)
+            for h, t in zip(handles, leg.get_texts()):
+                if h.get_facecolor()[3] == 0:
+                    t.set_fontweight("bold")
 
         # MAGs detected per sample (top) and MAGs per taxon (right)
         ax_top.bar(np.arange(n_s) + 0.5, self.mags_per_sample.values, width=0.72, color="#7A7A7A")
@@ -548,9 +584,12 @@ class _Quality:
                    if (cat == k).any()]
         above = q.Contamination.values > ymax
         if above.any():
-            vals = ", ".join(f"{v:.1f}%" for v in sorted(q.Contamination.values[above]))
+            vals = sorted(q.Contamination.values[above])
+            # list the values only while they fit on one line, otherwise summarise
+            detail = ", ".join(f"{v:.1f}%" for v in vals) if len(vals) <= 4 else \
+                f"n = {len(vals)}, up to {vals[-1]:.1f}%"
             handles.append(Line2D([], [], marker="^", ls="", color="#555555", ms=ms * 1.4,
-                                  label=f"Contamination > {ymax:g}%\n({vals})"))
+                                  label=f"Contamination > {ymax:g}%\n({detail})"))
         ax.legend(handles=handles, loc="upper left", bbox_to_anchor=(-0.02, -0.2), frameon=False, ncol=1,
                   handletextpad=0.1, borderpad=0.0, borderaxespad=0.0, labelspacing=0.25, fontsize=o.fs_small)
         return ax_hx
@@ -568,13 +607,22 @@ class _Taxonomy:
         self.color_level = RANKS.index(opt.color_rank) - a  # index into node tuple, may be < 0
         self.tax = tax
         o = opt
-        self.unit = o.text_h_cm(o.fs_small) * 0.36  # cm per genome
+        # cm per genome; large catalogues are scaled down so the panel stays below ~9 cm
+        n_max = max(sum(self.values[n] for n in col) for col in self.columns)
+        self.unit = min(o.text_h_cm(o.fs_small) * 0.36, 9.0 / max(n_max, 1))
         self.gap = o.text_h_cm(o.fs_small) * 0.42   # cm between nodes
         self.col_h = [sum(self.values[n] for n in col) * self.unit + (len(col) - 1) * self.gap
                       for col in self.columns]
+        # every label needs one text line: many taxa make the panel taller than the bands
+        self.label_gap = o.text_h_cm(o.fs_small) * 0.95
+        self.H = max(max(self.col_h), max(len(col) for col in self.columns) * self.label_gap)
+        if self.H > 12:
+            print(f"[INFO] The taxonomy panel is {self.H:.0f} cm tall ({max(len(c) for c in self.columns)} taxa "
+                  f"at {opt.flow_ranks[1]}); use e.g. --flow_ranks {opt.flow_ranks[0]} "
+                  f"{RANKS[max(RANKS.index(opt.flow_ranks[1]) - 1, a)]} for a smaller figure.")
 
     def size_cm(self):
-        return self.opt.width_cm, max(self.col_h) + self.opt.text_h_cm() * 1.6
+        return self.opt.width_cm, self.H + self.opt.text_h_cm() * 1.6
 
     def _label(self, node, k):
         name = node[-1]
@@ -595,15 +643,16 @@ class _Taxonomy:
         o = self.opt
         ax = fig.add_subplot(spec)
         self.axes = [ax]
-        width = o.width_cm
-        H = max(self.col_h)
-        char_w = o.fs_small * PT_CM * 0.6
+        width = _spec_width_cm(fig, spec)
+        H = self.H
         node_w = 0.13
         n_col = len(self.columns)
 
         def col_widths(counts_mid):
             self.show_counts = [True] + [counts_mid] * (n_col - 2) + [True] if n_col > 1 else [True]
-            return [max(len(self._label(n, k)) for n in col) * char_w + 0.5 for k, col in enumerate(self.columns)]
+            return [text_w_cm([self._label(n, k) for n in col], o.fs_small,
+                              italic=self.ranks[k] in ("genus", "species")) + 0.5
+                    for k, col in enumerate(self.columns)]
 
         widths = col_widths(True)
         if sum(widths) + n_col * node_w > width:
@@ -637,7 +686,7 @@ class _Taxonomy:
                     p[2] += v
                     ct, cb, _ = pos[child]
                     ribbon(xs[k] + node_w, a0, a0 + v, xs[k + 1], ct, cb, self._color(child))
-        th = o.text_h_cm(o.fs_small) * 0.95
+        th = self.label_gap
         for k, col in enumerate(self.columns):
             centres = np.array([(pos[n][0] + pos[n][1]) / 2 for n in col])
             label_y = spread_labels(centres, th, -0.2, H + 0.2)
@@ -656,7 +705,7 @@ class _Taxonomy:
         for k, rank in enumerate(self.ranks):
             ax.text(xs[k] + node_w / 2, -o.text_h_cm() * 0.5, rank.capitalize(), ha="center", va="bottom",
                     fontsize=o.fs, fontweight="bold")
-        ax.set_xlim(0, width)
+        ax.set_xlim(0, width)  # axis units are cm
         ax.set_ylim(H + 0.05, -o.text_h_cm() * 1.6)
         ax.axis("off")
         return ax
@@ -696,10 +745,9 @@ class _Function:
     def draw(self, fig, spec):
         o = self.opt
         labels = [self.species_label(r) for _, r in self.clusters.iterrows()]
-        char_w = o.fs_small * PT_CM * 0.6
-        txt_w = max(len(s) for s in labels) * char_w + 0.3
+        txt_w = text_w_cm(labels, o.fs_small, italic=True) + 0.3
         bar_w = 2.2
-        heat_w = o.width_cm - txt_w - bar_w
+        heat_w = _spec_width_cm(fig, spec) - txt_w - bar_w
         self._heat_w = heat_w
         g = spec.subgridspec(2, 3, width_ratios=[bar_w, txt_w, heat_w], height_ratios=[1.0, 10], wspace=0.0,
                              hspace=0.02)
@@ -858,9 +906,10 @@ def overview_figure(output_prefix, opt: OverviewOptions, coverm=None, gtdb=None,
 
         gaps = [1.0] * (len(rows) - 1)  # cm between rows, refined after measuring
         margins = [0.3, 0.3, 0.6, 0.2]  # left, right, top, bottom in cm (refined)
-        for _ in range(3):
+        sides = [[0.3, 0.3] for _ in rows]  # left/right margin of each row: every row uses the full width
+        for _ in range(8):  # content that scales with the width converges in a few passes
             plt.close("all")
-            fig, row_axes = _build(objs, rows, heights, gaps, margins, opt)
+            fig, row_axes = _build(objs, rows, heights, gaps, margins, opt, sides)
             fig.canvas.draw()
             # vertical: overhang of each row beyond its slot, then set gaps to a fixed clearance
             clear = opt.text_h_cm() * 0.9
@@ -877,8 +926,12 @@ def overview_figure(output_prefix, opt: OverviewOptions, coverm=None, gtdb=None,
             new_margins = [margins[0] - x0 + 0.05, margins[1] - (W - x1) + 0.05,
                            margins[2] - (H - y1) + 0.05 + opt.text_h_cm(opt.fs_letter),
                            margins[3] - y0 + 0.05]
-            converged = np.allclose(new_gaps, gaps, atol=0.02) and np.allclose(new_margins, margins, atol=0.02)
-            gaps, margins = new_gaps, new_margins
+            new_sides = [[max(0.0, sd[0] - e[0] + 0.05), max(0.0, sd[1] - (W - e[2]) + 0.05)]
+                         for sd, e in zip(sides, ext)]
+            new_margins[0] = new_margins[1] = 0.0
+            converged = (np.allclose(new_gaps, gaps, atol=0.02) and np.allclose(new_margins, margins, atol=0.02)
+                         and np.allclose(new_sides, sides, atol=0.03))
+            gaps, margins, sides = new_gaps, new_margins, new_sides
             if converged:
                 break
         written = []
@@ -901,7 +954,7 @@ def _slots(heights, gaps, margins):
     return slots
 
 
-def _build(objs, rows, heights, gaps, margins, opt):
+def _build(objs, rows, heights, gaps, margins, opt, sides):
     W = opt.width_cm
     total_h = margins[2] + sum(heights) + sum(gaps) + margins[3]
     fig = plt.figure(figsize=(W * CM, total_h * CM))
@@ -914,9 +967,11 @@ def _build(objs, rows, heights, gaps, margins, opt):
                           left=margins[0] / W, right=1 - margins[1] / W,
                           top=1 - margins[2] / total_h, bottom=margins[3] / total_h)
     row_axes = []
-    inner_w = W - margins[0] - margins[1]
     for i, row in enumerate(rows):
-        spec = gs[2 * i]
+        left, right = sides[i]
+        inner_w = W - left - right
+        spec = gs[2 * i].subgridspec(1, 3, width_ratios=[max(left, 1e-3), inner_w, max(right, 1e-3)],
+                                     wspace=0.0)[1]
         axes = []
         if len(row) == 2:
             wa, _ = objs[row[0]].size_cm()
@@ -949,7 +1004,7 @@ def _build(objs, rows, heights, gaps, margins, opt):
                 y1 = max(b.y1 for b in bb)
                 x, y = inv.transform((x0, y1))
                 if p == "abundance" or len(row) == 1:
-                    x = margins[0] / W * 0 + 0.0
+                    x = 0.0
                 fig.text(max(x - 0.004, 0.0), y + 0.002, PANEL_LETTERS[p], fontsize=opt.fs_letter,
                          fontweight="bold", va="bottom", ha="left")
     return fig, row_axes

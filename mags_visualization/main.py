@@ -1,12 +1,11 @@
 import pandas as pd
-import numpy as np
 import argparse
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import time
 import os
 from .version import __version__
-from .sanky_taxa import generate_taxa_sanky,taxa_sanky_rank
+from .sankey_taxa import generate_taxa_sanky,taxa_sanky_rank
 from .comp_conta_plot import completeness_contamination_plot, rank_completeness_contamination_plot, metadata_completeness_contamination_plot
 from .heatmap import mag_heatmap
 from .drep_cluster_plot import drep_cluster_plot
@@ -32,19 +31,10 @@ def reset_matplotlib():
     """
     Reset matplotlib global state so plots do not inherit style/layout
     from previously created figures.
-    (Required, if you want to use subcommand "all".)
     """
     plt.close("all")
     mpl.rcdefaults()
     plt.rcdefaults()
-
-
-def run_clean(plot_func, *args, **kwargs):
-    """
-    Run a plotting function in a clean matplotlib state.
-    """
-    reset_matplotlib()
-    return plot_func(*args, **kwargs)
 
 
 CM_TO_INCH = 1 / 2.54
@@ -545,53 +535,6 @@ def build_parser():
     g.add_argument("--prefix", default="overview_figure", help="File name (without extension) inside --output")
     g.add_argument("-o", "--output", required=True, dest="output", help="Output folder")
 
-    p = sub.add_parser("all", help="Run all plots (legacy behaviour).")
-    p.add_argument("--coverm", dest="coverm_path", default=None)
-    p.add_argument("--checkm", dest="checkm_file", default=None)
-    p.add_argument("--checkm2", dest="checkm2_file", default=None)
-    p.add_argument("--gtdb", dest="gtdb_file", default=None)
-    p.add_argument("--drep", dest="drep_file", default=None)
-    p.add_argument("--quast", dest="quast_file", default=None)
-    p.add_argument("--bakta", dest="bakta_file", default=None)
-    p.add_argument("--metadata", dest="metadata_file", default=None)
-    p.add_argument("--pathways", dest="pathways_file", default=None)
-    p.add_argument("--rank", choices=tax_levels, default="phylum", dest="rank")
-    p.add_argument("--tax_level", choices=tax_levels, default=None, dest="tax_level")
-    p.add_argument("--tax_levels", nargs="+", choices=tax_levels, default=["phylum", "genus"])
-    p.add_argument("--top_n", type=positive_int, default=30, dest="n")
-    p.add_argument("--quality", action="store_true")
-    p.add_argument("--require_quality", action="store_true", dest="require_quality",
-                   help="Only show clusters whose representative has CheckM2 data")
-    p.add_argument("--tax", action="store_true")
-    p.add_argument("--meta_col", dest="meta_col", default=None)
-    p.add_argument("--meta_cols", nargs="+", default=None)
-    p.add_argument("--meta_bin_width", type=float, default=5.0, dest="meta_bin_width")
-    p.add_argument("--column_choice", nargs="+", metavar="METRIC", dest="column_choice")
-    p.add_argument("--color_by", choices=["quality", "tax", "meta"], dest="color_by")
-    p.add_argument("--tax_levels_space", type=float, default=0.8, dest="tax_levels_space")
-    p.add_argument("--fig_size", nargs=2, type=float, metavar=("WIDTH", "HEIGHT"), dest="fig_size",
-                   help="Figure size in cm (width height)")
-    p.add_argument("-o", "--output", required=True, dest="output")
-    p.add_argument("--format", choices=["png", "pdf", "svg"], default="png", dest="format")
-    # heatmap layout subset
-    p.add_argument("--top_bar_height", type=float, default=1.8, dest="top_bar_height")
-    p.add_argument("--hspace", type=float, default=0.6, dest="hspace")
-    p.add_argument("--heatmap_width", type=float, default=28.0, dest="heatmap_width")
-    p.add_argument("--spacer_legend", type=float, default=0.8, dest="spacer_legend")
-    p.add_argument("--spacer_meta", type=float, default=5.0, dest="spacer_meta")
-    p.add_argument("--spacer_heatmap", type=float, default=0.25, dest="spacer_heatmap")
-    p.add_argument("--legend", type=float, default=6.4, dest="legend")
-    p.add_argument("--meta_bar_add", type=float, default=3.8, dest="meta_bar_add")
-    p.add_argument("--top_bar_spacer", type=float, default=0.0, dest="top_bar_spacer")
-    p.add_argument("--max_col", type=int, default=10, dest="max_col")
-    p.add_argument("--no_log", action="store_true")
-    # functional annoation
-    p.add_argument("--top_modules", type=int_or_none, default=35, dest="top_modules")
-    p.add_argument("--mode", choices=["mean", "variance"], default="mean", dest="mode")
-    p.add_argument("--show_module_labels", action="store_true", dest="show_module_labels")
-    p.add_argument("--row_fontsize", type=int, default=8, dest="row_fontsize")
-    p.add_argument("--top_representatives", type=int, default=None, dest="top_representatives")
-
     _add_default_help(parser)
     return parser
 
@@ -957,135 +900,6 @@ def run_overview_figure(args):
                    metadata=dfs.get("metadata"))
 
 
-def run_all(args):
-    """
-    Runs all based on provided inputs.
-    """
-    dfs = load_dfs(
-        args.coverm_path,
-        args.checkm_file,
-        args.checkm2_file,
-        args.gtdb_file,
-        args.drep_file,
-        bakta=args.bakta_file,
-        quast=args.quast_file,
-        metadata=args.metadata_file,
-        pathways=args.pathways_file
-    )
-    check_path(args.output)
-
-    if dfs.get("coverm"):
-        dfs["coverm"] = merged_coverm(dfs["coverm"])
-
-    comp_fig_size = _fig_size_tuple(args)
-
-    tax_rank = args.tax_level or args.rank or "phylum"
-
-    # sankey
-    if dfs["gtdb"] is not None:
-        reset_matplotlib()
-        generate_taxa_sanky(dfs["gtdb"], args.output, args.rank)
-
-        reset_matplotlib()
-        taxa_sanky_rank(dfs["gtdb"], args.output, args.rank)
-
-    # comp/conta
-    run_quality = args.quality or (not args.quality and not args.tax)
-    run_tax = args.tax or (not args.quality and not args.tax)
-
-    if run_quality and dfs["checkm"] is not None:
-        run_clean(
-            completeness_contamination_plot,
-            dfs["checkm"], args.output, tag="checkm",
-            title="CheckM: Completeness vs Contamination",
-            fig_size=comp_fig_size or (9, 8), fmt=args.format
-        )
-    if run_quality and dfs["checkm2"] is not None:
-        run_clean(
-            completeness_contamination_plot,
-            dfs["checkm2"], args.output, tag="checkm2",
-            title="CheckM2: Completeness vs Contamination",
-            fig_size=comp_fig_size or (9, 8), fmt=args.format
-        )
-
-    if run_tax and dfs["gtdb"] is not None and dfs["checkm"] is not None and dfs["checkm2"] is not None:
-        run_clean(
-            rank_completeness_contamination_plot,
-            dfs["checkm"], dfs["checkm2"], dfs["gtdb"], tax_rank,
-            args.output, args.n,
-            fig_size=comp_fig_size or (10, 8), fmt=args.format
-        )
-
-    # drep-cluster-annot
-    if dfs.get("drep") is not None and dfs.get("gtdb") is not None:
-        run_clean(
-            drep_cluster_plot,
-            dfs["drep"], dfs["gtdb"], args.output,
-            tax_levels=args.tax_levels, top_n=args.n,
-            fig_size=comp_fig_size, fmt=args.format,
-            tax_levels_space=cm(args.tax_levels_space),
-            checkm2_df=dfs.get("checkm2"),
-            quast_df=dfs.get("quast"),
-            bakta_df=dfs.get("bakta"),
-            require_quality=getattr(args, "require_quality", False),
-       )
-    
-    # drep-cluster-func
-    if dfs.get("drep") is not None and dfs.get("gtdb") is not None and dfs.get("pathways") is not None:
-        run_clean(
-            drep_cluster_functional_plot,
-            dfs["drep"],
-            dfs["gtdb"],
-            dfs["pathways"],
-            args.output,
-            top_n=args.n,
-            fmt=args.format,
-            tax_levels=args.tax_levels,
-            top_modules=args.top_modules,
-            fig_size=_fig_size_tuple(args),
-            tax_levels_space=cm(args.tax_levels_space),
-        )
-    
-    # pathway-heatmap-completeness
-    if dfs.get("pathways") is not None:
-        run_clean(
-            pathway_module_heatmap,
-            pathway_df=dfs["pathways"],
-            output_path=args.output,
-            top_modules=args.top_modules,
-            mode=args.mode,
-            fmt=args.format,
-            fig_size=_fig_size_tuple(args),
-            row_fontsize=args.row_fontsize,
-            representatives_df=dfs.get("drep"),
-            gtdb_df=dfs.get("gtdb"),
-            top_representatives=args.top_representatives,
-        )
-
-    # heatmap
-    if dfs.get("coverm") is not None and dfs.get("gtdb") is not None:
-        run_clean(
-            mag_heatmap,
-            dfs["coverm"], dfs["gtdb"], args.output,
-            rank=tax_rank,
-            metadata_df=dfs.get("metadata"),
-            meta_cols=args.meta_cols,
-            meta_bin_width=args.meta_bin_width,
-            fmt=args.format,
-            top_bar_height=cm(args.top_bar_height),
-            hspace=cm(args.hspace),
-            heatmap_width=cm(args.heatmap_width),
-            spacer_legend=cm(args.spacer_legend),
-            spacer_meta=cm(args.spacer_meta),
-            spacer_heatmap=cm(args.spacer_heatmap),
-            legend=cm(args.legend),
-            meta_bar_add=cm(args.meta_bar_add),
-            top_bar_spacer=cm(args.top_bar_spacer),
-            max_col=args.max_col,
-            log_top=not args.no_log,
-        )
-
-
 # ---- Main ---- #
 def main(argv=None):
     start_time = time.time()
@@ -1105,8 +919,6 @@ def main(argv=None):
         run_taxa_sankey(args)
     elif args.command == "overview-figure":
         run_overview_figure(args)
-    elif args.command == "all":
-        run_all(args)
     else:
         raise SystemExit(f"[ERROR] Unknown command: {args.command}")
 

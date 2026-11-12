@@ -2,7 +2,6 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib import cm
 from matplotlib.colors import Normalize
 from .id_normalizer import normalize_genome_id, format_genome_display
 from .drep_cluster_func import prepare_cluster_data, simplify_pathway_class
@@ -41,40 +40,6 @@ def select_top_modules(df: pd.DataFrame, top_modules: int | None = None, mode: s
 
     keep_modules = scores.sort_values(ascending=False).head(top_modules).index
     return df[df["module_accession"].isin(keep_modules)].copy()
-
-
-def get_plot_matched_representatives(drep_df: pd.DataFrame, gtdb_df: pd.DataFrame, pathway_df: pd.DataFrame,
-    top_representatives: int, tax_levels=("phylum",)) -> list[str]:
-    """
-    Get the same representative genomes used in the dRep functional cluster plot.
-    Ensures that heatmap shows exactly the same MAGs as in the other heatmap.
-
-    1. Build cluster representatives using prepare_cluster_data()
-    2. Remove representatives without pathway data
-    3. Keep top N largest clusters
-
-    Returns list of representative IDs in plotting order.
-    """
-    pw_genomes = set(pathway_df["contig"].apply(normalize_genome_id).unique())
-
-    # Fetch more clusters than needed, because some will be filtered out later
-    cluster_data, _, _ = prepare_cluster_data(
-        drep_df=drep_df,
-        gtdb_df=gtdb_df,
-        tax_levels=tax_levels,
-        top_n=top_representatives * 2,
-        pathway_df=pathway_df,
-    )
-
-    cluster_data = cluster_data[
-        cluster_data["representative"].isin(pw_genomes)
-    ].reset_index(drop=True)
-
-    # prepare_cluster_data sorts ascending by n_members
-    # so tail(top_representatives) gives the largest clusters
-    cluster_data = cluster_data.tail(top_representatives).reset_index(drop=True)
-
-    return cluster_data["representative"].tolist()
 
 
 def simplify_module_name(name: str) -> str:

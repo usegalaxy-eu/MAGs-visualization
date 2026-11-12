@@ -32,7 +32,7 @@ From source:
 ```bash
 git clone https://github.com/usegalaxy-eu/MAGs-visualization.git
 cd MAGs-visualization
-pip install .            # or: conda env create -f environment.yml && conda activate mags && pip install -e .
+pip install .            # or: conda env create -f environment.yml && conda activate mags
 mags-visualization --help
 ```
 
@@ -64,7 +64,6 @@ The [gallery](docs/plots.md) shows the command and the result for every subcomma
 | `drep-cluster-func` | Largest dRep clusters with KEGG module completeness | `--drep`, `--gtdb`, `--pathways` |
 | `pathway-module-heatmap` | KEGG module completeness of all MAGs, grouped by pathway class | `--drep`, `--gtdb`, `--pathways` |
 | `taxa-sankey` | Sankey diagram of the GTDB taxonomy (interactive HTML or static) | `--gtdb` |
-| `all` | Runs the plots above in one go (legacy, mainly for testing) | all of the above |
 
 ### The overview figure
 
@@ -143,7 +142,7 @@ To make a tall figure fit a page, lower `--top_n`, stop the flow diagram at a hi
 Genome names are matched across tables after normalisation (file extensions such as `.fasta`/`.fa`, paths and
 case are ignored), so the tables can come from different tools without renaming. Example files of every input
 are in [`test-data/`](test-data) (bee gut microbiome, 38 species-level representative MAGs). Complete use
-cases with their commands are in [`use-cases/`](use-cases/README.md).
+cases (clouds, marine, termite gut) with their commands are in [`use-cases/`](use-cases/README.md).
 
 ## Options
 
@@ -162,8 +161,19 @@ plots:
 
 ## Development
 
+### Repository layout
+
+```text
+mags_visualization/   the package: main.py (CLI), overview.py (overview figure), one module per classic plot
+tests/                pytest tests (CLI, overview figure, data handling, docs)
+test-data/            bee gut microbiome example inputs, used by tests, gallery and Galaxy tests
+use-cases/            further real datasets (clouds, marine, termite gut) and the commands to plot them
+docs/                 generated: cli.md (all options), plots.md + gallery/ (every plot with its command)
+scripts/build_docs.py regenerates docs/
+```
+
 ```bash
-pip install -e . pytest
+pip install -e .[test]
 pytest                              # unit, plotting and CLI tests
 python scripts/build_docs.py        # regenerate docs/cli.md and the gallery (docs/plots.md, docs/gallery/)
 python scripts/build_docs.py --check  # fails if docs/cli.md does not match the CLI
@@ -173,7 +183,7 @@ CI runs the tests, checks that `docs/cli.md` is up to date and builds the galler
 every subcommand. When adding or changing an option, regenerate the docs and, for the Galaxy tools, update the
 wrappers in [galaxyproject/tools-iuc](https://github.com/galaxyproject/tools-iuc/tree/main/tools/mags_visualization).
 
-Releases: bump `mags_visualization/version.py`, tag `v<version>` and update the
+Package metadata and dependencies are in `pyproject.toml`. Releases: bump `mags_visualization/version.py`, tag `v<version>` and update the
 [Bioconda recipe](https://github.com/bioconda/bioconda-recipes/tree/master/recipes/mags-visualization).
 
 ## Citation

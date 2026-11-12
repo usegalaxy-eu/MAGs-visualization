@@ -22,4 +22,4 @@ def test_gallery_covers_every_subcommand():
 
     sub = next(a for a in build_parser()._actions if isinstance(a, argparse._SubParsersAction))
     documented = {args[0] for _, _, _, args in EXAMPLES}
-    assert set(sub.choices) - {"all"} <= documented
+    assert set(sub.choices) <= documented

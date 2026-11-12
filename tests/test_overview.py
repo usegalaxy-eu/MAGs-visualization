@@ -18,6 +18,7 @@ from mags_visualization.overview import (
     quality_category,
     sample_metadata,
     spread_labels,
+    text_w_cm,
     taxon_colors,
     taxonomy_flow,
     taxonomy_table,
@@ -69,6 +70,20 @@ def test_abundance_by_taxon_pools_other():
     assert heat.loc["Other", "S2"] == 2
     assert per_taxon["Other"] == 1
     assert per_sample.to_dict() == {"S1": 4, "S2": 3}
+
+
+def test_spread_labels_dense_never_overlap():
+    rng = np.random.default_rng(0)
+    y = np.sort(rng.uniform(0, 3, 40))
+    out = spread_labels(y, 0.25, 0.0, 12.0)
+    assert np.all(np.diff(out) >= 0.25 - 1e-9)
+    assert np.all(np.argsort(out) == np.arange(40))
+
+
+def test_text_width_is_measured():
+    assert text_w_cm(["WWWW"], 8) > text_w_cm(["iiii"], 8) > 0
+    assert text_w_cm(["abc"], 16) == pytest.approx(2 * text_w_cm(["abc"], 8))
+    assert text_w_cm([], 8) == 0.0
 
 
 def test_quality_category_thresholds():
@@ -270,3 +285,17 @@ def test_quality_panel_without_gtdb(tmp_path, data):
     assert (tmp_path / "q.png").exists()
     with pytest.raises(ValueError, match="GTDB"):
         overview_figure(tmp_path / "t", OverviewOptions(panels=["taxonomy"]))
+
+
+@pytest.mark.parametrize("case,meta_cols", [
+    ("cloud", ["Geographic origin of the air mass", "Condition", "Season"]),
+    ("termite", ["Species", "Casts", "Colony"]),
+])
+def test_use_cases_render(tmp_path, case, meta_cols):
+    """Larger catalogues: many samples, categorical metadata, many MAGs above the contamination axis."""
+    d = REPO_ROOT / "use-cases" / f"{case}-use-case" / "data"
+    out = overview_figure(
+        tmp_path / case, OverviewOptions(panels=["abundance", "quality", "taxonomy"], meta_cols=meta_cols),
+        coverm=pd.read_csv(d / "coverm.tsv", sep="\t"), gtdb=pd.read_csv(d / "gtdb.tsv", sep="\t"),
+        quality=pd.read_csv(d / "checkm2.tsv", sep="\t"), metadata=pd.read_csv(d / "metadata.tsv", sep="\t"))
+    assert Path(out[0]).stat().st_size > 0
