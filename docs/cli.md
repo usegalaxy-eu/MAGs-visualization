@@ -50,6 +50,15 @@ usage: mags-visualization sample-heatmap [-h] --coverm COVERM_PATH --gtdb
                                          [--legend LEGEND]
                                          [--meta_bar_add META_BAR_ADD]
                                          [--top_bar_spacer TOP_BAR_SPACER]
+                                         [--style {classic,overview}]
+                                         [--width_cm WIDTH_CM]
+                                         [--font_size FONT_SIZE]
+                                         [--color_rank {domain,phylum,class,order,family,genus,species}]
+                                         [--dpi DPI]
+                                         [--meta_labels META_LABELS [META_LABELS ...]]
+                                         [--sample_label_col SAMPLE_LABEL_COL]
+                                         [--sample_group_col SAMPLE_GROUP_COL]
+                                         [--group_order GROUP_ORDER [GROUP_ORDER ...]]
 
 options:
   -h, --help            show this help message and exit
@@ -80,6 +89,11 @@ options:
                         rest as 'Others' (default: 10)
   --no_log              Plot MAGs per taxon on a linear instead of a log10
                         axis (default: False)
+  --style {classic,overview}
+                        Plot style: 'classic' is the original plot, 'overview'
+                        draws the matching panel of overview-figure at print
+                        size (--width_cm, --font_size) with its options below
+                        (default: classic)
 
 Heatmap Layout Options (all values in cm):
   --top_bar_height TOP_BAR_HEIGHT
@@ -102,6 +116,29 @@ Heatmap Layout Options (all values in cm):
                         Extra width added to the metadata bars (default: 3.8)
   --top_bar_spacer TOP_BAR_SPACER
                         Gap above the MAGs-per-taxon bar chart (default: 0.0)
+
+overview style (--style overview):
+  --width_cm WIDTH_CM   Figure width in cm at print size (17 = full page
+                        width, 8.5 = one column) (default: 12.0)
+  --font_size FONT_SIZE
+                        Base font size in pt at print size; dense labels use
+                        85% of it (default: 8.0)
+  --color_rank {domain,phylum,class,order,family,genus,species}
+                        Rank whose taxa get one colour each (shared by all
+                        panels) (default: phylum)
+  --dpi DPI             Resolution of PNG output (default: 300)
+  --meta_labels META_LABELS [META_LABELS ...]
+                        Display names for --meta_cols (same order) (default:
+                        None)
+  --sample_label_col SAMPLE_LABEL_COL
+                        Metadata column used as sample label (name or 1-based
+                        index) (default: None)
+  --sample_group_col SAMPLE_GROUP_COL
+                        Metadata column grouping the samples (sorted together,
+                        separated by a gap); name or 1-based index (default:
+                        None)
+  --group_order GROUP_ORDER [GROUP_ORDER ...]
+                        Order of the sample groups (default: None)
 ```
 
 ## drep-cluster-annot
@@ -164,6 +201,11 @@ usage: mags-visualization drep-cluster-func [-h] --drep DREP_FILE --gtdb
                                             [--top_modules TOP_MODULES]
                                             [--mode {mean,variance,both}]
                                             [--module_label {id,name,both}]
+                                            [--style {classic,overview}]
+                                            [--width_cm WIDTH_CM]
+                                            [--font_size FONT_SIZE]
+                                            [--color_rank {domain,phylum,class,order,family,genus,species}]
+                                            [--dpi DPI]
 
 options:
   -h, --help            show this help message and exit
@@ -202,6 +244,22 @@ options:
   --module_label {id,name,both}
                         Module labels on the x-axis: id, name or both
                         (default: id)
+  --style {classic,overview}
+                        Plot style: 'classic' is the original plot, 'overview'
+                        draws the matching panel of overview-figure at print
+                        size (--width_cm, --font_size) with its options below
+                        (default: classic)
+
+overview style (--style overview):
+  --width_cm WIDTH_CM   Figure width in cm at print size (17 = full page
+                        width, 8.5 = one column) (default: 17.0)
+  --font_size FONT_SIZE
+                        Base font size in pt at print size; dense labels use
+                        85% of it (default: 8.0)
+  --color_rank {domain,phylum,class,order,family,genus,species}
+                        Rank whose taxa get one colour each (shared by all
+                        panels) (default: phylum)
+  --dpi DPI             Resolution of PNG output (default: 300)
 ```
 
 ## pathway-module-heatmap
@@ -270,6 +328,16 @@ usage: mags-visualization comp-conta [-h] [--tools {both,checkm,checkm2}]
                                      [--tax_level {domain,phylum,class,order,family,genus,species}]
                                      [--fig_size WIDTH HEIGHT] -o OUTPUT
                                      [--format {png,pdf,svg}]
+                                     [--style {classic,overview}]
+                                     [--width_cm WIDTH_CM]
+                                     [--font_size FONT_SIZE]
+                                     [--color_rank {domain,phylum,class,order,family,genus,species}]
+                                     [--dpi DPI]
+                                     [--hq_completeness HQ_COMPLETENESS]
+                                     [--hq_contamination HQ_CONTAMINATION]
+                                     [--mq_completeness MQ_COMPLETENESS]
+                                     [--mq_contamination MQ_CONTAMINATION]
+                                     [--max_contamination_axis MAX_CONTAMINATION_AXIS]
 
 options:
   -h, --help            show this help message and exit
@@ -308,6 +376,38 @@ options:
                         None)
   --format {png,pdf,svg}
                         Output file format (default: png)
+  --style {classic,overview}
+                        Plot style: 'classic' is the original plot, 'overview'
+                        draws the matching panel of overview-figure at print
+                        size (--width_cm, --font_size) with its options below
+                        (default: classic)
+
+overview style (--style overview, --mode quality only):
+  --width_cm WIDTH_CM   Figure width in cm at print size (17 = full page
+                        width, 8.5 = one column) (default: 8.5)
+  --font_size FONT_SIZE
+                        Base font size in pt at print size; dense labels use
+                        85% of it (default: 7.0)
+  --color_rank {domain,phylum,class,order,family,genus,species}
+                        Rank whose taxa get one colour each (shared by all
+                        panels) (default: phylum)
+  --dpi DPI             Resolution of PNG output (default: 300)
+  --hq_completeness HQ_COMPLETENESS
+                        Minimum completeness of high-quality MAGs (default:
+                        90.0)
+  --hq_contamination HQ_CONTAMINATION
+                        Maximum contamination of high-quality MAGs (default:
+                        5.0)
+  --mq_completeness MQ_COMPLETENESS
+                        Minimum completeness of medium-quality MAGs (default:
+                        70.0)
+  --mq_contamination MQ_CONTAMINATION
+                        Maximum contamination of medium-quality MAGs (no limit
+                        if unset) (default: None)
+  --max_contamination_axis MAX_CONTAMINATION_AXIS
+                        Upper limit of the contamination axis; MAGs above it
+                        are drawn as triangles at the edge and their values
+                        listed in the legend (default: 8.0)
 ```
 
 ## taxa-sankey
@@ -318,6 +418,10 @@ usage: mags-visualization taxa-sankey [-h] --gtdb GTDB_FILE
                                       [--rank {domain,phylum,class,order,family,genus,species}]
                                       [--font_size FONT_SIZE] [--order_links]
                                       [--format {html,png,pdf,svg}] -o OUTPUT
+                                      [--style {classic,overview}]
+                                      [--width_cm WIDTH_CM]
+                                      [--color_rank {domain,phylum,class,order,family,genus,species}]
+                                      [--dpi DPI] [--flow_ranks FROM TO]
 
 options:
   -h, --help            show this help message and exit
@@ -330,7 +434,9 @@ options:
                         (sankey_plot_rank_filtered), which links each MAG to
                         its taxon at this rank (default: phylum)
   --font_size FONT_SIZE
-                        Font size (pt) of node labels (default: 10)
+                        Font size of the labels: px in the classic Plotly plot
+                        (default 10), pt in the overview style (default 8)
+                        (default: None)
   --order_links         Order nodes/links to reduce crossings (writes
                         sankey_plot_ordered.*) (default: False)
   --format {html,png,pdf,svg}
@@ -338,6 +444,21 @@ options:
   -o OUTPUT, --output OUTPUT
                         Output folder (created if it does not exist) (default:
                         None)
+  --style {classic,overview}
+                        Plot style: 'classic' is the original plot, 'overview'
+                        draws the matching panel of overview-figure at print
+                        size (--width_cm, --font_size) with its options below
+                        (default: classic)
+
+overview style (--style overview; png, pdf or svg):
+  --width_cm WIDTH_CM   Figure width in cm at print size (17 = full page
+                        width, 8.5 = one column) (default: 17.0)
+  --color_rank {domain,phylum,class,order,family,genus,species}
+                        Rank whose taxa get one colour each (shared by all
+                        panels) (default: phylum)
+  --dpi DPI             Resolution of PNG output (default: 300)
+  --flow_ranks FROM TO  First and last rank of the flow diagram (default:
+                        ['phylum', 'genus'])
 ```
 
 ## overview-figure
@@ -354,6 +475,7 @@ usage: mags-visualization overview-figure [-h] --gtdb GTDB_FILE
                                           [--width_cm WIDTH_CM]
                                           [--font_size FONT_SIZE]
                                           [--color_rank {domain,phylum,class,order,family,genus,species}]
+                                          [--dpi DPI]
                                           [--tax_level {domain,phylum,class,order,family,genus,species}]
                                           [--max_taxa MAX_TAXA]
                                           [--meta_cols META_COLS [META_COLS ...]]
@@ -371,8 +493,7 @@ usage: mags-visualization overview-figure [-h] --gtdb GTDB_FILE
                                           [--top_modules TOP_MODULES]
                                           [--module_mode {mean,variance}]
                                           [--format {png,pdf,svg} [{png,pdf,svg} ...]]
-                                          [--dpi DPI] [--prefix PREFIX] -o
-                                          OUTPUT
+                                          [--prefix PREFIX] -o OUTPUT
 
 Draw a publication-ready overview of a MAG catalogue at its final print size.
 Panels: abundance (relative abundance per sample and taxon, with sample
@@ -404,14 +525,15 @@ layout:
   --panels {abundance,quality,taxonomy,function} [{abundance,quality,taxonomy,function} ...]
                         Panels to draw, in figure order (default:
                         ['abundance', 'quality', 'taxonomy', 'function'])
-  --width_cm WIDTH_CM   Figure width in cm (17 = full page width) (default:
-                        17.0)
+  --width_cm WIDTH_CM   Figure width in cm at print size (17 = full page
+                        width, 8.5 = one column) (default: 17.0)
   --font_size FONT_SIZE
-                        Base font size in pt at the final figure size; dense
-                        labels use 85% of it (default: 8.0)
+                        Base font size in pt at print size; dense labels use
+                        85% of it (default: 8.0)
   --color_rank {domain,phylum,class,order,family,genus,species}
-                        Rank whose taxa get one colour each, shared by all
-                        panels (default: phylum)
+                        Rank whose taxa get one colour each (shared by all
+                        panels) (default: phylum)
+  --dpi DPI             Resolution of PNG output (default: 300)
 
 abundance panel:
   --tax_level {domain,phylum,class,order,family,genus,species}
@@ -470,7 +592,6 @@ function panel:
 output:
   --format {png,pdf,svg} [{png,pdf,svg} ...]
                         One or more output formats (default: ['png'])
-  --dpi DPI             Resolution of PNG output (default: 300)
   --prefix PREFIX       File name (without extension) inside --output
                         (default: overview_figure)
   -o OUTPUT, --output OUTPUT

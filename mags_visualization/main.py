@@ -298,6 +298,54 @@ def _add_default_help(parser):
             action.help = OPTION_HELP.get(action.option_strings[-1], None)
 
 
+TAX_LEVELS = ["domain", "phylum", "class", "order", "family", "genus", "species"]
+STYLE_HELP = ("Plot style: 'classic' is the original plot, 'overview' draws the matching panel of "
+              "overview-figure at print size (--width_cm, --font_size) with its options below")
+
+
+def _add_style_switch(p):
+    p.add_argument("--style", choices=["classic", "overview"], default="classic", help=STYLE_HELP)
+
+
+def _add_layout_args(g, width=17.0, font_size=8.0):
+    """Size and colour options shared by overview-figure and the overview style of single plots."""
+    g.add_argument("--width_cm", type=float, default=width,
+                   help="Figure width in cm at print size (17 = full page width, 8.5 = one column)")
+    if font_size is not None:
+        g.add_argument("--font_size", type=float, default=font_size,
+                       help="Base font size in pt at print size; dense labels use 85%% of it")
+    g.add_argument("--color_rank", choices=TAX_LEVELS, default="phylum",
+                   help="Rank whose taxa get one colour each (shared by all panels)")
+    g.add_argument("--dpi", type=int, default=300, help="Resolution of PNG output")
+
+
+def _add_sample_args(g):
+    """Sample labelling options of the abundance panel."""
+    g.add_argument("--meta_labels", nargs="+", default=None, help="Display names for --meta_cols (same order)")
+    g.add_argument("--sample_label_col", default=None,
+                   help="Metadata column used as sample label (name or 1-based index)")
+    g.add_argument("--sample_group_col", default=None,
+                   help="Metadata column grouping the samples (sorted together, separated by a gap); "
+                        "name or 1-based index")
+    g.add_argument("--group_order", nargs="+", default=None, help="Order of the sample groups")
+
+
+def _add_quality_args(g):
+    g.add_argument("--hq_completeness", type=float, default=90.0, help="Minimum completeness of high-quality MAGs")
+    g.add_argument("--hq_contamination", type=float, default=5.0, help="Maximum contamination of high-quality MAGs")
+    g.add_argument("--mq_completeness", type=float, default=70.0, help="Minimum completeness of medium-quality MAGs")
+    g.add_argument("--mq_contamination", type=float, default=None,
+                   help="Maximum contamination of medium-quality MAGs (no limit if unset)")
+    g.add_argument("--max_contamination_axis", type=float, default=8.0,
+                   help="Upper limit of the contamination axis; MAGs above it are drawn as triangles at the edge "
+                        "and their values listed in the legend")
+
+
+def _add_flow_args(g):
+    g.add_argument("--flow_ranks", nargs=2, choices=TAX_LEVELS, default=["phylum", "genus"],
+                   metavar=("FROM", "TO"), help="First and last rank of the flow diagram")
+
+
 # ---- Parser builder - subcommands ---- #
 def build_parser():
     parser = argparse.ArgumentParser(
@@ -309,7 +357,7 @@ def build_parser():
 
     sub = parser.add_subparsers(dest="command", required=True)
 
-    tax_levels = ["domain", "phylum", "class", "order", "family", "genus", "species"]
+    tax_levels = TAX_LEVELS
 
     # ---- sample-heatmap ----
     p = sub.add_parser("sample-heatmap", help="Create the sample heatmap plot.")
@@ -336,6 +384,10 @@ def build_parser():
     layout.add_argument("--legend", type=float, default=6.4, dest="legend")
     layout.add_argument("--meta_bar_add", type=float, default=3.8, dest="meta_bar_add")
     layout.add_argument("--top_bar_spacer", type=float, default=0.0, dest="top_bar_spacer")
+    _add_style_switch(p)
+    g = p.add_argument_group("overview style (--style overview)")
+    _add_layout_args(g, width=12.0)
+    _add_sample_args(g)
 
     # ---- drep-cluster-annotation ----
     p = sub.add_parser("drep-cluster-annot", help="Create the dRep cluster plot.")
@@ -375,6 +427,8 @@ def build_parser():
                    help="mean = core modules, variance = differential modules, or both.")
     p.add_argument("--module_label", choices=["id", "name", "both"], default="id",
                    dest="module_label", help="Module labels on the x-axis: id, name or both")
+    _add_style_switch(p)
+    _add_layout_args(p.add_argument_group("overview style (--style overview)"))
     
     # ---- pathway-module-heatmap ----
     p = sub.add_parser("pathway-module-heatmap", help="Create a MAG vs pathway-module heatmap grouped by pathway_class.")
@@ -417,6 +471,10 @@ def build_parser():
                    help="Figure size in cm (width height)")
     p.add_argument("-o", "--output", required=True, dest="output")
     p.add_argument("--format", choices=["png", "pdf", "svg"], default="png", dest="format")
+    _add_style_switch(p)
+    g = p.add_argument_group("overview style (--style overview, --mode quality only)")
+    _add_layout_args(g, width=8.5, font_size=7.0)
+    _add_quality_args(g)
 
     # ---- taxa-sankey ----
     p = sub.add_parser("taxa-sankey", help="Create GTDB taxa sankey plots.")
@@ -424,13 +482,20 @@ def build_parser():
     p.add_argument("--coverm", dest="coverm_path", default=None,
                    help="Optional CoverM abundance table; bar sizes become abundance-based")
     p.add_argument("--rank", choices=tax_levels, default="phylum", dest="rank")
-    p.add_argument("--font_size", type=int, default=10, dest="font_size")
+    p.add_argument("--font_size", type=float, default=None, dest="font_size",
+                   help="Font size of the labels: px in the classic Plotly plot (default 10), pt in the overview "
+                        "style (default 8)")
     p.add_argument("--order_links", action="store_true", dest="order_links",
                    help="Order nodes/links to reduce crossings (writes sankey_plot_ordered.*)")
     p.add_argument("--format", choices=["html", "png", "pdf", "svg"], default="html")
     p.add_argument("-o", "--output", required=True, dest="output")
 
     # ---- all (optional) ----
+    _add_style_switch(p)
+    g = p.add_argument_group("overview style (--style overview; png, pdf or svg)")
+    _add_layout_args(g, font_size=None)
+    _add_flow_args(g)
+
     # ---- overview-figure ----
     p = sub.add_parser(
         "overview-figure",
@@ -458,36 +523,16 @@ def build_parser():
                    help="Sample metadata; the first column must hold the CoverM sample names (abundance panel)")
     g = p.add_argument_group("layout")
     g.add_argument("--panels", nargs="+", choices=PANELS, default=PANELS, help="Panels to draw, in figure order")
-    g.add_argument("--width_cm", type=float, default=17.0, help="Figure width in cm (17 = full page width)")
-    g.add_argument("--font_size", type=float, default=8.0,
-                   help="Base font size in pt at the final figure size; dense labels use 85%% of it")
-    g.add_argument("--color_rank", choices=tax_levels, default="phylum",
-                   help="Rank whose taxa get one colour each, shared by all panels")
+    _add_layout_args(g)
     g = p.add_argument_group("abundance panel")
     g.add_argument("--tax_level", choices=tax_levels, default="phylum", help="Rank of the heatmap rows")
     g.add_argument("--max_taxa", type=int, default=10, help="Show the N most abundant taxa, pool the rest as Other")
     g.add_argument("--meta_cols", nargs="+", default=None,
                    help="Metadata columns shown as rows above the heatmap (names or 1-based indices). "
                         "Boolean columns become filled/empty squares, others coloured squares")
-    g.add_argument("--meta_labels", nargs="+", default=None, help="Display names for --meta_cols (same order)")
-    g.add_argument("--sample_label_col", default=None,
-                   help="Metadata column used as sample label (name or 1-based index)")
-    g.add_argument("--sample_group_col", default=None,
-                   help="Metadata column grouping the samples (sorted together, separated by a gap); "
-                        "name or 1-based index")
-    g.add_argument("--group_order", nargs="+", default=None, help="Order of the sample groups")
-    g = p.add_argument_group("quality panel")
-    g.add_argument("--hq_completeness", type=float, default=90.0, help="Minimum completeness of high-quality MAGs")
-    g.add_argument("--hq_contamination", type=float, default=5.0, help="Maximum contamination of high-quality MAGs")
-    g.add_argument("--mq_completeness", type=float, default=70.0, help="Minimum completeness of medium-quality MAGs")
-    g.add_argument("--mq_contamination", type=float, default=None,
-                   help="Maximum contamination of medium-quality MAGs (no limit if unset)")
-    g.add_argument("--max_contamination_axis", type=float, default=8.0,
-                   help="Upper limit of the contamination axis; MAGs above it are drawn as triangles at the edge "
-                        "and their values listed in the legend")
-    g = p.add_argument_group("taxonomy panel")
-    g.add_argument("--flow_ranks", nargs=2, choices=tax_levels, default=["phylum", "genus"],
-                   metavar=("FROM", "TO"), help="First and last rank of the flow diagram")
+    _add_sample_args(g)
+    _add_quality_args(p.add_argument_group("quality panel"))
+    _add_flow_args(p.add_argument_group("taxonomy panel"))
     g = p.add_argument_group("function panel")
     g.add_argument("--top_n", type=int, default=30, help="Number of largest dRep clusters shown")
     g.add_argument("--top_modules", type=int, default=35, help="Number of KEGG modules shown")
@@ -497,7 +542,6 @@ def build_parser():
     g = p.add_argument_group("output")
     g.add_argument("--format", nargs="+", choices=["png", "pdf", "svg"], default=["png"],
                    help="One or more output formats")
-    g.add_argument("--dpi", type=int, default=300, help="Resolution of PNG output")
     g.add_argument("--prefix", default="overview_figure", help="File name (without extension) inside --output")
     g.add_argument("-o", "--output", required=True, dest="output", help="Output folder")
 
@@ -558,6 +602,13 @@ def parse_arguments(argv=None):
 
 # ---- Subcommand implementation ---- #
 def run_sample_heatmap(args):
+    if args.style == "overview":
+        dfs = load_dfs(coverm=args.coverm_path, checkm=None, checkm2=None, gtdb=args.gtdb_file, drep=None,
+                       metadata=args.metadata_file)
+        check_path(args.output)
+        _draw_overview(args, ["abundance"], f"heatmap_overview_{args.tax_level}", [args.format],
+                       coverm=merged_coverm(dfs["coverm"]), gtdb=dfs["gtdb"], metadata=dfs.get("metadata"))
+        return
     dfs = load_dfs(
         coverm=args.coverm_path,
         checkm=None,
@@ -636,6 +687,19 @@ def run_drep_cluster(args):
 
 
 def run_drep_cluster_func(args):
+    if args.style == "overview":
+        if args.pathways_file is None:
+            raise SystemExit("[ERROR] --pathways is required for --style overview")
+        dfs = load_dfs(coverm=None, checkm=None, checkm2=None, gtdb=args.gtdb_file, drep=args.drep_file,
+                       pathways=args.pathways_file)
+        check_path(args.output)
+        modes = ["mean", "variance"] if args.mode == "both" else [args.mode]
+        for mode in modes:
+            args.module_mode = mode
+            kind = "core" if mode == "mean" else "difference"
+            _draw_overview(args, ["function"], f"drep_cluster_functional_{kind}_overview_top{args.n}", [args.format],
+                           gtdb=dfs["gtdb"], drep=dfs["drep"], pathways=dfs["pathways"])
+        return
     dfs = load_dfs(
         coverm=None,
         checkm=None,
@@ -700,6 +764,17 @@ def run_comp_conta(args):
         raise SystemExit("[ERROR] --checkm is required when --tools is 'checkm' or 'both'")
     if args.tools in ("checkm2", "both") and args.checkm2_file is None:
         raise SystemExit("[ERROR] --checkm2 is required when --tools is 'checkm2' or 'both'")
+    if args.style == "overview":
+        if args.mode != "quality":
+            raise SystemExit("[ERROR] --style overview supports --mode quality only")
+        dfs = load_dfs(coverm=None, checkm=args.checkm_file, checkm2=args.checkm2_file, gtdb=args.gtdb_file,
+                       drep=None)
+        check_path(args.output)
+        for tool, key in (("checkm", "checkm"), ("checkm2", "checkm2")):
+            if args.tools in (tool, "both"):
+                _draw_overview(args, ["quality"], f"comp_conta_overview_{tool}", [args.format],
+                               gtdb=dfs.get("gtdb"), quality=dfs[key])
+        return
 
     dfs = load_dfs(
         coverm=None,
@@ -778,6 +853,15 @@ def run_comp_conta(args):
 
 
 def run_taxa_sankey(args):
+    if args.style == "overview":
+        if args.format == "html":
+            raise SystemExit("[ERROR] --style overview writes png, pdf or svg; choose one with --format")
+        dfs = load_dfs(coverm=None, checkm=None, checkm2=None, gtdb=args.gtdb_file, drep=None)
+        check_path(args.output)
+        _draw_overview(args, ["taxonomy"], "sankey_plot_overview", [args.format], gtdb=dfs["gtdb"])
+        return
+    if args.font_size is None:
+        args.font_size = 10
     dfs = load_dfs(
         coverm=args.coverm_path,
         checkm=None,
@@ -794,6 +878,67 @@ def run_taxa_sankey(args):
     taxa_sanky_rank(dfs["gtdb"], args.output, args.rank, fmt=args.format)
 
 
+def _resolve_metadata_cols(args, metadata):
+    """Metadata column arguments as names (Galaxy data_column parameters pass 1-based indices)."""
+    meta_cols = getattr(args, "meta_cols", None)
+    label_col = getattr(args, "sample_label_col", None)
+    group_col = getattr(args, "sample_group_col", None)
+    if metadata is not None:
+        if is_index_input(meta_cols):
+            meta_cols = resolve_col_names(metadata, meta_cols)
+        if label_col is not None and is_index_input([label_col]):
+            label_col = resolve_col_names(metadata, [label_col])[0]
+        if group_col is not None and is_index_input([group_col]):
+            group_col = resolve_col_names(metadata, [group_col])[0]
+    return meta_cols, label_col, group_col
+
+
+def _overview_options(args, panels, metadata=None):
+    """Build OverviewOptions from the arguments of any subcommand; missing ones keep their defaults."""
+    default = OverviewOptions(panels=panels)
+
+    def get(*names, fallback):
+        for n in names:
+            v = getattr(args, n, None)
+            if v is not None:
+                return v
+        return fallback
+
+    meta_cols, label_col, group_col = _resolve_metadata_cols(args, metadata)
+    mode = get("module_mode", "mode", fallback=default.module_mode)
+    return OverviewOptions(
+        panels=panels,
+        width_cm=get("width_cm", fallback=default.width_cm),
+        font_size=get("font_size", fallback=default.font_size),
+        color_rank=get("color_rank", fallback=default.color_rank),
+        abundance_rank=get("tax_level", fallback=default.abundance_rank),
+        max_taxa=get("max_taxa", "max_col", fallback=default.max_taxa),
+        meta_cols=meta_cols, meta_labels=getattr(args, "meta_labels", None),
+        sample_label_col=label_col, sample_group_col=group_col,
+        group_order=getattr(args, "group_order", None),
+        hq_completeness=get("hq_completeness", fallback=default.hq_completeness),
+        hq_contamination=get("hq_contamination", fallback=default.hq_contamination),
+        mq_completeness=get("mq_completeness", fallback=default.mq_completeness),
+        mq_contamination=getattr(args, "mq_contamination", None),
+        max_contamination_axis=get("max_contamination_axis", fallback=default.max_contamination_axis),
+        flow_ranks=tuple(get("flow_ranks", fallback=default.flow_ranks)),
+        top_n=get("top_n", "n", fallback=default.top_n),
+        top_modules=get("top_modules", fallback=default.top_modules),
+        module_mode=mode if mode in ("mean", "variance") else default.module_mode,
+    )
+
+
+def _draw_overview(args, panels, prefix, formats, **inputs):
+    """Draw overview panels for a subcommand run with --style overview."""
+    try:
+        opt = _overview_options(args, panels, inputs.get("metadata"))
+        reset_matplotlib()
+        return overview_figure(os.path.join(args.output, prefix), opt, formats=formats,
+                               dpi=getattr(args, "dpi", 300), **inputs)
+    except ValueError as e:
+        raise SystemExit(f"[ERROR] {e}")
+
+
 def run_overview_figure(args):
     dfs = load_dfs(
         coverm=args.coverm_path,
@@ -805,38 +950,11 @@ def run_overview_figure(args):
         pathways=args.pathways_file,
     )
     check_path(args.output)
-    meta_cols = args.meta_cols
-    label_col, group_col = args.sample_label_col, args.sample_group_col
-    if dfs.get("metadata") is not None:
-        # Galaxy data_column parameters pass 1-based indices
-        if is_index_input(meta_cols):
-            meta_cols = resolve_col_names(dfs["metadata"], meta_cols)
-        if label_col is not None and is_index_input([label_col]):
-            label_col = resolve_col_names(dfs["metadata"], [label_col])[0]
-        if group_col is not None and is_index_input([group_col]):
-            group_col = resolve_col_names(dfs["metadata"], [group_col])[0]
-    try:
-        opt = OverviewOptions(
-            panels=args.panels, width_cm=args.width_cm, font_size=args.font_size,
-            abundance_rank=args.tax_level, max_taxa=args.max_taxa, meta_cols=meta_cols,
-            meta_labels=args.meta_labels, sample_label_col=label_col,
-            sample_group_col=group_col, group_order=args.group_order,
-            hq_completeness=args.hq_completeness, hq_contamination=args.hq_contamination,
-            mq_completeness=args.mq_completeness, mq_contamination=args.mq_contamination,
-            max_contamination_axis=args.max_contamination_axis, flow_ranks=tuple(args.flow_ranks),
-            top_n=args.top_n, top_modules=args.top_modules, module_mode=args.module_mode,
-            color_rank=args.color_rank,
-        )
-        coverm = merged_coverm(dfs["coverm"]) if dfs.get("coverm") else None
-        quality = dfs.get("checkm2") if dfs.get("checkm2") is not None else dfs.get("checkm")
-        reset_matplotlib()
-        overview_figure(
-            os.path.join(args.output, args.prefix), opt, coverm=coverm, gtdb=dfs["gtdb"], quality=quality,
-            drep=dfs.get("drep"), pathways=dfs.get("pathways"), metadata=dfs.get("metadata"),
-            formats=args.format, dpi=args.dpi,
-        )
-    except ValueError as e:
-        raise SystemExit(f"[ERROR] {e}")
+    coverm = merged_coverm(dfs["coverm"]) if dfs.get("coverm") else None
+    quality = dfs.get("checkm2") if dfs.get("checkm2") is not None else dfs.get("checkm")
+    _draw_overview(args, args.panels, args.prefix, args.format, coverm=coverm, gtdb=dfs["gtdb"],
+                   quality=quality, drep=dfs.get("drep"), pathways=dfs.get("pathways"),
+                   metadata=dfs.get("metadata"))
 
 
 def run_all(args):
