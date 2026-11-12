@@ -30,7 +30,6 @@ def run_cli(args: list[str], cwd: Path | None = None) -> subprocess.CompletedPro
         ["drep-cluster-func", "--help"],
         ["pathway-module-heatmap", "--help"],
         ["overview-figure", "--help"],
-        ["all", "--help"],
     ],
 )
 def test_help_commands_work(args: list[str]) -> None:
@@ -130,40 +129,6 @@ def test_functional_annotation_smoke(tmp_path: Path) -> None:
     assert output_file.stat().st_size > 0
 
 
-def test_all_smoke(tmp_path: Path) -> None:
-    outdir = tmp_path / "all"
-    result = run_cli(
-        [
-            "all",
-            "--coverm", str(TEST_DATA / "coverm.tsv"),
-            "--checkm", str(TEST_DATA / "checkm.tsv"),
-            "--checkm2", str(TEST_DATA / "checkm2.tsv"),
-            "--gtdb", str(TEST_DATA / "gtdb.tsv"),
-            "--drep", str(TEST_DATA / "drep.csv"),
-            "--metadata", str(TEST_DATA / "metadata.tsv"),
-            "--pathways", str(TEST_DATA / "kegg_pathway_completeness.tsv"),
-            "--meta_cols",
-            "Infection by Nosema ceranae",
-            "Chronic exposure to neonicotinoid",
-            "Treatment with probiotic",
-            "--tax_level", "phylum",
-            "--top_n", "30",
-            "--output", str(outdir),
-        ]
-    )
-    assert result.returncode == 0, result.stderr
-
-    expected = [
-        outdir / "heatmap_with_bars_phylum.png",
-        outdir / "comp_conta_by_rank_marginals_CheckM2.png",
-        outdir / "sankey_plot.html",
-        outdir / "drep_cluster_top30_phylum-genus.png",
-        outdir / "drep_cluster_functional_core_top30.png",
-    ]
-    for path in expected:
-        assert path.exists(), f"Missing expected output: {path}"
-        assert path.stat().st_size > 0, f"Empty output file: {path}"
-
 def test_pathway_module_heatmap_smoke(tmp_path: Path) -> None:
     outdir = tmp_path / "pathway-module-heatmap"
     result = run_cli(
@@ -197,3 +162,114 @@ def test_taxa_sankey_abundance_and_ordered_smoke(tmp_path: Path) -> None:
     # --order_links writes the crossing-minimised version instead of the plain one
     assert (outdir / "sankey_plot_ordered.html").exists()
     assert (outdir / "sankey_plot_rank_filtered.html").exists()
+
+
+# ---- input validation ---- #
+
+def test_sample_heatmap_requires_coverm() -> None:
+    result = run_cli(
+        [
+            "sample-heatmap",
+            "--gtdb", str(TEST_DATA / "gtdb.tsv"),
+            "--output", "dummy",
+        ]
+    )
+    assert result.returncode != 0
+
+
+def test_sample_heatmap_requires_gtdb() -> None:
+    result = run_cli(
+        [
+            "sample-heatmap",
+            "--coverm", str(TEST_DATA / "coverm.tsv"),
+            "--output", "dummy",
+        ]
+    )
+    assert result.returncode != 0
+
+
+def test_comp_conta_requires_gtdb_when_coloring_by_tax() -> None:
+    result = run_cli(
+        [
+            "comp-conta",
+            "--checkm", str(TEST_DATA / "checkm.tsv"),
+            "--checkm2", str(TEST_DATA / "checkm2.tsv"),
+            "--color_by", "tax",
+            "--output", "dummy",
+        ]
+    )
+    assert result.returncode != 0
+
+
+def test_comp_conta_requires_metadata_when_coloring_by_meta() -> None:
+    result = run_cli(
+        [
+            "comp-conta",
+            "--checkm", str(TEST_DATA / "checkm.tsv"),
+            "--checkm2", str(TEST_DATA / "checkm2.tsv"),
+            "--color_by", "meta",
+            "--meta_col", "Infection by Nosema ceranae",
+            "--output", "dummy",
+        ]
+    )
+    assert result.returncode != 0
+
+
+def test_comp_conta_requires_meta_col_when_coloring_by_meta() -> None:
+    result = run_cli(
+        [
+            "comp-conta",
+            "--checkm", str(TEST_DATA / "checkm.tsv"),
+            "--checkm2", str(TEST_DATA / "checkm2.tsv"),
+            "--color_by", "meta",
+            "--metadata", str(TEST_DATA / "metadata.tsv"),
+            "--output", "dummy",
+        ]
+    )
+    assert result.returncode != 0
+
+
+def test_drep_cluster_requires_drep() -> None:
+    result = run_cli(
+        [
+            "drep-cluster-annot",
+            "--gtdb", str(TEST_DATA / "gtdb.tsv"),
+            "--checkm2", str(TEST_DATA / "checkm2.tsv"),
+            "--output", "dummy",
+        ]
+    )
+    assert result.returncode != 0
+
+
+def test_taxa_sankey_requires_gtdb() -> None:
+    result = run_cli(
+        [
+            "taxa-sankey",
+            "--output", "dummy",
+        ]
+    )
+    assert result.returncode != 0
+
+
+def test_functional_annotation_requires_kegg_pathway_completeness() -> None:
+    result = run_cli(
+        [
+            "drep-cluster-func",
+            "--drep", str(TEST_DATA / "drep.csv"),
+            "--gtdb", str(TEST_DATA / "gtdb.tsv"),
+            "--output", "dummy",
+        ]
+    )
+    assert result.returncode != 0
+
+
+def test_functional_annotation_requires_drep() -> None:
+    result = run_cli(
+        [
+            "drep-cluster-func",
+            "--gtdb", str(TEST_DATA / "gtdb.tsv"),
+            "--kegg_pathway_completeness", str(TEST_DATA / "kegg_pathway_completeness.tsv"),
+            "--output", "dummy",
+        ]
+    )
+    assert result.returncode != 0

@@ -2,9 +2,8 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import gridspec, cm
+from matplotlib import gridspec
 from matplotlib.colors import Normalize
-from matplotlib.patches import Patch
 from .id_normalizer import normalize_genome_id, format_genome_display
 from .drep_cluster_plot import extract_rank
 

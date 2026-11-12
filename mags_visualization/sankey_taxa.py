@@ -45,25 +45,6 @@ def clean_tax_label(label: str, rank_name: str) -> str:
     return f"Unknown {rank_name.capitalize()}"
 
 
-def unique_tax_id(row, rank_idx, tax_columns):
-    """"
-    Create internal node ID.
-    Known taxa grouped by rank + taxon value.
-    Missing taxa grouped by their parent taxon.
-    """
-    parts = []
-    for i in range(rank_idx + 1):
-        rank = tax_columns[i]
-        value = row[rank]
-
-        if pd.isna(value) or not str(value).strip():
-            value = f"unknown_{rank}"
-
-        parts.append(f"{rank}={value}")
-
-    return "||".join(parts)
-
-
 def is_missing_taxon(value) -> bool:
     """
     Return True if a taxonomy entry is missing or unclassified

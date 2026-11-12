@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "MAGs-visualization"
+dynamic = ["version"]
+description = "Plots for catalogues of metagenome-assembled genomes (MAGs)"
+readme = "README.md"
+license = { text = "GPL-3.0" }
+authors = [{ name = "Alexandra Hottmann", email = "alexandra.hottm@gmx.de" }]
+requires-python = ">=3.9"
+dependencies = [
+    "pandas",
+    "numpy",
+    "matplotlib>=3.6",
+    "seaborn",
+    "plotly<7",
+    "kaleido==0.2.1",
+]
+
+[project.optional-dependencies]
+test = ["pytest", "pillow"]
+
+[project.urls]
+Homepage = "https://github.com/usegalaxy-eu/MAGs-visualization"
+
+[project.scripts]
+mags-visualization = "mags_visualization.main:main"
+
+[tool.setuptools]
+packages = ["mags_visualization"]
+
+[tool.setuptools.dynamic]
+version = { attr = "mags_visualization.version.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

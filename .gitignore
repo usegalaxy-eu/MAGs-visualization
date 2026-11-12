@@ -11,3 +11,8 @@ test-plots/
 .pytest_cache/
 .mypy_cache/
 dummy
+
+# plots made from the use cases
+plots/
+use-cases/*/plots/
+*.egg-info/
