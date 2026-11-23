@@ -147,6 +147,18 @@ def is_index_input(meta_cols):
 
 
 # ---- Data loading ---- #
+def gtdb_table(df):
+    """Index a GTDB-Tk summary by ``user_genome`` wherever that column is.
+
+    Concatenated summaries can have the columns in another order (e.g.
+    ``classification`` first); the first column is only used as the genome
+    column when there is no ``user_genome`` column.
+    """
+    if "user_genome" in df.columns:
+        return df.set_index("user_genome")
+    return df.set_index(df.columns[0])
+
+
 def load_dfs(coverm, checkm, checkm2, gtdb, drep, bakta=None, quast=None, metadata=None, pathways=None):
     """
     Load only what is provided.
@@ -183,7 +195,7 @@ def load_dfs(coverm, checkm, checkm2, gtdb, drep, bakta=None, quast=None, metada
 
     # gtdb
     if gtdb is not None:
-        dfs["gtdb"] = read_table(gtdb, index_col=0, prefer_tsv=True)
+        dfs["gtdb"] = gtdb_table(read_table(gtdb, index_col=None, prefer_tsv=True))
         print(f"[INFO] gtdb loaded:   {dfs['gtdb'].shape}")
     else:
         dfs["gtdb"] = None

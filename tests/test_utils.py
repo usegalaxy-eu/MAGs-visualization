@@ -87,3 +87,14 @@ def test_clean_sample_from_coverm_col_extracts_srr() -> None:
 def test_clean_sample_from_coverm_col_removes_fastq() -> None:
     col = "sampleA.fastq extra"
     assert clean_sample_from_coverm_col(col) == "sampleA"
+
+def test_gtdb_table_finds_user_genome_in_any_column(tmp_path):
+    from mags_visualization.main import gtdb_table, read_table
+
+    path = tmp_path / "gtdb.tsv"
+    path.write_text("classification\tuser_genome\tclosest_genome_ani\n"
+                    "d__Bacteria;p__Bacillota\tbin_1.fasta\t98.1\n")
+    df = gtdb_table(read_table(str(path), index_col=None, prefer_tsv=True))
+    assert df.index.name == "user_genome"
+    assert list(df.index) == ["bin_1.fasta"]
+    assert df.loc["bin_1.fasta", "classification"] == "d__Bacteria;p__Bacillota"
