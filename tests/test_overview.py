@@ -287,15 +287,19 @@ def test_quality_panel_without_gtdb(tmp_path, data):
         overview_figure(tmp_path / "t", OverviewOptions(panels=["taxonomy"]))
 
 
-@pytest.mark.parametrize("case,meta_cols", [
-    ("cloud", ["Geographic origin of the air mass", "Condition", "Season"]),
-    ("termite", ["Species", "Casts", "Colony"]),
-])
-def test_use_cases_render(tmp_path, case, meta_cols):
-    """Larger catalogues: many samples, categorical metadata, many MAGs above the contamination axis."""
-    d = REPO_ROOT / "use-cases" / f"{case}-use-case" / "data"
+def test_categorical_metadata_and_high_contamination_render(tmp_path, data):
+    """Catalogue features the bee data lacks: categorical metadata with many levels and many MAGs
+    above the contamination axis (the real use cases have both)."""
+    rng = np.random.default_rng(0)
+    metadata = data["metadata"].copy()
+    n = len(metadata)
+    metadata["Origin"] = rng.choice(["North", "Northwest", "West", "South", "Southwest", "East"], n)
+    metadata["Season"] = rng.choice(["Summer", "Autumn", "Winter"], n)
+    quality = data["quality"].copy()
+    high = quality.index[::3]
+    quality.loc[high, "Contamination"] = rng.uniform(9, 40, len(high))
     out = overview_figure(
-        tmp_path / case, OverviewOptions(panels=["abundance", "quality", "taxonomy"], meta_cols=meta_cols),
-        coverm=pd.read_csv(d / "coverm.tsv", sep="\t"), gtdb=pd.read_csv(d / "gtdb.tsv", sep="\t"),
-        quality=pd.read_csv(d / "checkm2.tsv", sep="\t"), metadata=pd.read_csv(d / "metadata.tsv", sep="\t"))
+        tmp_path / "categorical", OverviewOptions(panels=["abundance", "quality", "taxonomy"],
+                                                  meta_cols=["Condition", "Origin", "Season"]),
+        coverm=data["coverm"], gtdb=data["gtdb"], quality=quality, metadata=metadata)
     assert Path(out[0]).stat().st_size > 0

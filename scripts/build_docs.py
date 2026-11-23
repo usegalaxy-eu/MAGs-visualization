@@ -26,7 +26,10 @@ MAX_WIDTH_PX = 1600  # gallery images are downscaled to keep the repository smal
 META = ["Infection by Nosema ceranae", "Chronic exposure to neonicotinoid", "Treatment with probiotic"]
 T = "test-data/"
 
-# name, title, description, arguments (without -o)
+# name, title, description, arguments (without -o). One example per plot used for the
+# FAIRyMAGs use cases (bin/make_use_case_plots.sh in usegalaxy-eu/FAIRyMAGs), so the
+# gallery shows exactly the figures that the publication uses. Abundance, quality
+# and function are shown in both styles: classic and as the overview panel.
 EXAMPLES = [
     ("overview-figure", "Overview figure (all panels)",
      "Page-width figure combining relative abundance per sample, MAG quality, taxonomic composition and "
@@ -38,45 +41,34 @@ EXAMPLES = [
       "--meta_labels", "N. ceranae", "Neonicotinoid", "Probiotic",
       "--sample_label_col", "Label", "--sample_group_col", "Condition",
       "--group_order", "C", "P", "T", "TP", "N", "NP", "NT"]),
-    ("overview-figure-single-panel", "Overview figure, single panel",
-     "Any subset of panels can be drawn with `--panels`; here only the quality panel at half page width.",
-     ["overview-figure", "--gtdb", T + "gtdb.tsv", "--checkm2", T + "checkm2.tsv", "--panels", "quality",
-      "--width_cm", "8.5", "--font_size", "7"]),
+    ("sample-heatmap", "Sample heatmap",
+     "Relative abundance of each phylum per sample, with metadata bars, MAGs per taxon (top) and MAGs per "
+     "sample (right).",
+     ["sample-heatmap", "--coverm", T + "coverm.tsv", "--gtdb", T + "gtdb.tsv", "--metadata", T + "metadata.tsv",
+      "--meta_cols", *META, "--tax_level", "phylum"]),
     ("sample-heatmap-overview-style", "Sample heatmap, overview style",
      "`--style overview` draws the abundance panel of the overview figure on its own, at print size.",
      ["sample-heatmap", "--style", "overview", "--coverm", T + "coverm.tsv", "--gtdb", T + "gtdb.tsv",
       "--metadata", T + "metadata.tsv", "--meta_cols", *META, "--meta_labels", "N. ceranae", "Neonicotinoid",
       "Probiotic", "--sample_label_col", "Label", "--sample_group_col", "Condition",
       "--group_order", "C", "P", "T", "TP", "N", "NP", "NT", "--width_cm", "12"]),
+    ("comp-conta-quality", "Completeness vs contamination, coloured by quality",
+     "CheckM and/or CheckM2 completeness against contamination with marginal histograms.",
+     ["comp-conta", "--tools", "checkm2", "--checkm2", T + "checkm2.tsv", "--mode", "quality"]),
     ("comp-conta-overview-style", "Completeness vs contamination, overview style",
      "The quality panel on its own; quality classes are set with `--hq_*`/`--mq_*`, MAGs above "
      "`--max_contamination_axis` are marked and listed.",
      ["comp-conta", "--style", "overview", "--tools", "checkm2", "--checkm2", T + "checkm2.tsv",
       "--mq_contamination", "10"]),
     ("taxa-sankey-overview-style", "Taxonomy flow diagram, overview style",
-     "The taxonomy panel on its own, here from class to species and coloured by class.",
-     ["taxa-sankey", "--style", "overview", "--gtdb", T + "gtdb.tsv", "--flow_ranks", "class", "species",
-      "--color_rank", "class", "--format", "png"]),
-    ("drep-cluster-func-overview-style", "dRep clusters with KEGG modules, overview style",
-     "The function panel on its own, with the 20 largest clusters.",
-     ["drep-cluster-func", "--style", "overview", "--drep", T + "drep.csv", "--gtdb", T + "gtdb.tsv",
-      "--pathways", T + "kegg_pathway_completeness.tsv", "--top_n", "20"]),
-    ("sample-heatmap", "Sample heatmap",
-     "Relative abundance of each phylum per sample, with metadata bars, MAGs per taxon (top) and MAGs per "
-     "sample (right).",
-     ["sample-heatmap", "--coverm", T + "coverm.tsv", "--gtdb", T + "gtdb.tsv", "--metadata", T + "metadata.tsv",
-      "--meta_cols", *META, "--tax_level", "phylum"]),
-    ("comp-conta-quality", "Completeness vs contamination, coloured by quality",
-     "CheckM and/or CheckM2 completeness against contamination with marginal histograms.",
-     ["comp-conta", "--tools", "checkm2", "--checkm2", T + "checkm2.tsv", "--mode", "quality"]),
-    ("comp-conta-tax", "Completeness vs contamination, coloured by taxonomy",
-     "Points coloured by the GTDB rank given with `--tax_level`.",
-     ["comp-conta", "--tools", "checkm2", "--checkm2", T + "checkm2.tsv", "--mode", "tax",
-      "--gtdb", T + "gtdb.tsv", "--tax_level", "phylum"]),
-    ("comp-conta-meta", "Completeness vs contamination, coloured by metadata",
-     "Points coloured by a sample metadata column (`--meta_col`).",
-     ["comp-conta", "--tools", "checkm2", "--checkm2", T + "checkm2.tsv", "--mode", "meta",
-      "--metadata", T + "metadata.tsv", "--meta_col", "Condition"]),
+     "The taxonomy panel of the overview figure on its own: a flow diagram from phylum to genus "
+     "(`--flow_ranks`), band width = number of MAGs.",
+     ["taxa-sankey", "--style", "overview", "--gtdb", T + "gtdb.tsv", "--format", "png"]),
+    ("taxa-sankey", "Taxonomy Sankey diagram",
+     "Sankey diagram of the GTDB taxonomy, interactive with `--format html` (the default) or static; "
+     "`--order_links` minimises crossings and `--coverm` sizes the bands by abundance. Static formats need "
+     "`kaleido`.",
+     ["taxa-sankey", "--gtdb", T + "gtdb.tsv", "--order_links", "--font_size", "14", "--format", "png"]),
     ("drep-cluster-annot", "dRep clusters with taxonomy and assembly statistics",
      "The largest species-level clusters with their size, taxonomy and CheckM2/QUAST/Bakta annotation.",
      ["drep-cluster-annot", "--drep", T + "drep.csv", "--gtdb", T + "gtdb.tsv", "--checkm2", T + "checkm2.tsv",
@@ -85,14 +77,14 @@ EXAMPLES = [
      "The largest clusters with the completeness of the KEGG modules best covered by their representatives.",
      ["drep-cluster-func", "--drep", T + "drep.csv", "--gtdb", T + "gtdb.tsv",
       "--pathways", T + "kegg_pathway_completeness.tsv", "--top_n", "30"]),
+    ("drep-cluster-func-overview-style", "dRep clusters with KEGG modules, overview style",
+     "The function panel on its own, with the 20 largest clusters.",
+     ["drep-cluster-func", "--style", "overview", "--drep", T + "drep.csv", "--gtdb", T + "gtdb.tsv",
+      "--pathways", T + "kegg_pathway_completeness.tsv", "--top_n", "20"]),
     ("pathway-module-heatmap", "KEGG module heatmap",
      "KEGG module completeness of all MAGs, grouped by pathway class.",
      ["pathway-module-heatmap", "--drep", T + "drep.csv", "--gtdb", T + "gtdb.tsv",
       "--pathways", T + "kegg_pathway_completeness.tsv"]),
-    ("taxa-sankey", "Taxonomy Sankey diagram",
-     "Interactive (HTML) or static Sankey diagram of the GTDB taxonomy; `--order_links` minimises crossings "
-     "and `--coverm` sizes the bands by abundance.",
-     ["taxa-sankey", "--gtdb", T + "gtdb.tsv", "--order_links", "--font_size", "14", "--format", "png"]),
 ]
 
 
@@ -146,9 +138,10 @@ def quote(a: str) -> str:
 def plots_page(results) -> str:
     out = ["# Plot gallery", "",
            "<!-- generated by scripts/build_docs.py, do not edit by hand -->", "",
-           "Every plot of `mags-visualization`, made from the bundled `test-data` (bee gut microbiome, "
-           "38 species-level representative MAGs). Run the commands from the repository root; options are "
-           "described in [cli.md](cli.md).", ""]
+           "The plots of `mags-visualization` used for the FAIRyMAGs use cases, made from the bundled "
+           "`test-data` (bee gut microbiome, 38 species-level representative MAGs). Run the commands from the "
+           "repository root; all options, including the modes and styles not shown here, are described in "
+           "[cli.md](cli.md).", ""]
     out += ["| Example | Subcommand |", "|---|---|"]
     out += [f"| [{title}](#{name}) | `{args[0]}` |" for name, title, _, args, _ in results]
     out.append("")
