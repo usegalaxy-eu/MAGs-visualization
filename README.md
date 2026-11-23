@@ -14,7 +14,7 @@ command-line tool, a Python package and [Galaxy tools](https://toolshed.g2.bx.ps
 
 - [Installation](#installation)
 - [Quick start](#quick-start)
-- [Plots](#plots) – what each subcommand draws ([gallery with all plots](docs/plots.md))
+- [Plots](#plots) – what each subcommand draws ([gallery with commands and figures](docs/plots.md))
 - [Input files](#input-files)
 - [Options](#options) – full reference in [docs/cli.md](docs/cli.md)
 - [Development](#development)
@@ -51,7 +51,9 @@ mags-visualization overview-figure \
   --format png svg -o overview
 ```
 
-The [gallery](docs/plots.md) shows the command and the result for every subcommand and mode.
+The [gallery](docs/plots.md) shows the command and the result for every plot we use. Abundance, quality,
+taxonomy and function are shown in both styles, classic and as the panel of the overview figure
+(`--style overview`).
 
 ## Plots
 
@@ -141,8 +143,10 @@ To make a tall figure fit a page, lower `--top_n`, stop the flow diagram at a hi
 
 Genome names are matched across tables after normalisation (file extensions such as `.fasta`/`.fa`, paths and
 case are ignored), so the tables can come from different tools without renaming. Example files of every input
-are in [`test-data/`](test-data) (bee gut microbiome, 38 species-level representative MAGs). Complete use
-cases (clouds, marine, termite gut) with their commands are in [`use-cases/`](use-cases/README.md).
+are in [`test-data/`](test-data) (bee gut microbiome, 38 species-level representative MAGs). The plots of the
+FAIRyMAGs use cases (bee gut, termite head, macroalgal epiphytes, aeromicrobiome) are made with
+[`bin/make_use_case_plots.sh`](https://github.com/usegalaxy-eu/FAIRyMAGs/blob/main/bin/make_use_case_plots.sh)
+in the FAIRyMAGs repository, from the tables stored there.
 
 ## Options
 
@@ -167,8 +171,7 @@ plots:
 mags_visualization/   the package: main.py (CLI), overview.py (overview figure), one module per classic plot
 tests/                pytest tests (CLI, overview figure, data handling, docs)
 test-data/            bee gut microbiome example inputs, used by tests, gallery and Galaxy tests
-use-cases/            further real datasets (clouds, marine, termite gut) and the commands to plot them
-docs/                 generated: cli.md (all options), plots.md + gallery/ (every plot with its command)
+docs/                 generated: cli.md (all options), plots.md + gallery/ (the plots we use, with their commands)
 scripts/build_docs.py regenerates docs/
 ```
 

@@ -14,5 +14,4 @@ dummy
 
 # plots made from the use cases
 plots/
-use-cases/*/plots/
 *.egg-info/
