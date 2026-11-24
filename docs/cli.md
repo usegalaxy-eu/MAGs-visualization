@@ -421,6 +421,7 @@ usage: mags-visualization taxa-sankey [-h] --gtdb GTDB_FILE
                                       [--width_cm WIDTH_CM]
                                       [--color_rank {domain,phylum,class,order,family,genus,species}]
                                       [--dpi DPI] [--flow_ranks FROM TO]
+                                      [--flow_drop_unclassified]
 
 options:
   -h, --help            show this help message and exit
@@ -458,6 +459,10 @@ overview style (--style overview; png, pdf or svg):
   --dpi DPI             Resolution of PNG output (default: 300)
   --flow_ranks FROM TO  First and last rank of the flow diagram (default:
                         ['phylum', 'genus'])
+  --flow_drop_unclassified
+                        Leave out MAGs that are unclassified at the first rank
+                        of the flow diagram (their number is given below the
+                        panel) (default: False)
 ```
 
 ## overview-figure
@@ -488,6 +493,7 @@ usage: mags-visualization overview-figure [-h] --gtdb GTDB_FILE
                                           [--mq_contamination MQ_CONTAMINATION]
                                           [--max_contamination_axis MAX_CONTAMINATION_AXIS]
                                           [--flow_ranks FROM TO]
+                                          [--flow_drop_unclassified]
                                           [--top_n TOP_N]
                                           [--top_modules TOP_MODULES]
                                           [--module_mode {mean,variance}]
@@ -578,6 +584,10 @@ quality panel:
 taxonomy panel:
   --flow_ranks FROM TO  First and last rank of the flow diagram (default:
                         ['phylum', 'genus'])
+  --flow_drop_unclassified
+                        Leave out MAGs that are unclassified at the first rank
+                        of the flow diagram (their number is given below the
+                        panel) (default: False)
 
 function panel:
   --top_n TOP_N         Number of largest dRep clusters shown (default: 30)

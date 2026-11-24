@@ -90,6 +90,7 @@ class OverviewOptions:
     max_contamination_axis: float = 8.0
     # taxonomy panel
     flow_ranks: tuple[str, str] = ("phylum", "genus")
+    flow_drop_unclassified: bool = False  # leave out MAGs unclassified at the first flow rank
     # function panel
     top_n: int = 30
     top_modules: int = 35
@@ -523,7 +524,7 @@ class _Quality:
     def draw(self, fig, spec):
         o = self.opt
         q, cat = self.q, self.cat
-        g = spec.subgridspec(2, 2, width_ratios=[4.2, 1.1], height_ratios=[1.1, 4.2], wspace=0.06, hspace=0.06)
+        g = spec.subgridspec(2, 2, width_ratios=[4.2, 0.8], height_ratios=[1.1, 4.2], wspace=0.06, hspace=0.06)
         ax = fig.add_subplot(g[1, 0])
         ax_hx = fig.add_subplot(g[0, 0], sharex=ax)
         ax_hy = fig.add_subplot(g[1, 1], sharey=ax)
@@ -602,6 +603,11 @@ class _Taxonomy:
         self.opt = opt
         a, b = (RANKS.index(r) for r in opt.flow_ranks)
         self.ranks = RANKS[a:b + 1]
+        self.n_hidden = 0
+        if opt.flow_drop_unclassified:
+            unclassified = tax[self.ranks[0]].fillna("Unclassified") == "Unclassified"
+            self.n_hidden = int(unclassified.sum())
+            tax = tax[~unclassified]
         self.columns, self.values, self.children = taxonomy_flow(tax, self.ranks)
         self.colors = colors
         self.color_level = RANKS.index(opt.color_rank) - a  # index into node tuple, may be < 0
@@ -616,13 +622,14 @@ class _Taxonomy:
         # every label needs one text line: many taxa make the panel taller than the bands
         self.label_gap = o.text_h_cm(o.fs_small) * 0.95
         self.H = max(max(self.col_h), max(len(col) for col in self.columns) * self.label_gap)
+        self.note_h = o.text_h_cm(o.fs_small) * 1.5 if self.n_hidden else 0.0
         if self.H > 12:
             print(f"[INFO] The taxonomy panel is {self.H:.0f} cm tall ({max(len(c) for c in self.columns)} taxa "
                   f"at {opt.flow_ranks[1]}); use e.g. --flow_ranks {opt.flow_ranks[0]} "
                   f"{RANKS[max(RANKS.index(opt.flow_ranks[1]) - 1, a)]} for a smaller figure.")
 
     def size_cm(self):
-        return self.opt.width_cm, self.H + self.opt.text_h_cm() * 1.6
+        return self.opt.width_cm, self.H + self.opt.text_h_cm() * 1.6 + self.note_h
 
     def _label(self, node, k):
         name = node[-1]
@@ -705,8 +712,11 @@ class _Taxonomy:
         for k, rank in enumerate(self.ranks):
             ax.text(xs[k] + node_w / 2, -o.text_h_cm() * 0.5, rank.capitalize(), ha="center", va="bottom",
                     fontsize=o.fs, fontweight="bold")
+        if self.n_hidden:
+            ax.text(0, H + self.note_h, f"Not shown: {self.n_hidden} MAGs unclassified at {self.ranks[0]} level",
+                    ha="left", va="bottom", fontsize=o.fs_small, color="#555555")
         ax.set_xlim(0, width)  # axis units are cm
-        ax.set_ylim(H + 0.05, -o.text_h_cm() * 1.6)
+        ax.set_ylim(H + 0.05 + self.note_h, -o.text_h_cm() * 1.6)
         ax.axis("off")
         return ax
 
@@ -975,8 +985,9 @@ def _build(objs, rows, heights, gaps, margins, opt, sides):
         axes = []
         if len(row) == 2:
             wa, _ = objs[row[0]].size_cm()
-            wb = inner_w - wa - 1.3
-            sub = spec.subgridspec(1, 3, width_ratios=[wa, 1.3, max(wb, 4.0)], wspace=0.0)
+            gap = 0.8
+            wb = inner_w - wa - gap
+            sub = spec.subgridspec(1, 3, width_ratios=[wa, gap, max(wb, 4.0)], wspace=0.0)
             specs = [sub[0], sub[2]]
         else:
             specs = [spec]

@@ -346,6 +346,9 @@ def _add_quality_args(g):
 def _add_flow_args(g):
     g.add_argument("--flow_ranks", nargs=2, choices=TAX_LEVELS, default=["phylum", "genus"],
                    metavar=("FROM", "TO"), help="First and last rank of the flow diagram")
+    g.add_argument("--flow_drop_unclassified", action="store_true",
+                   help="Leave out MAGs that are unclassified at the first rank of the flow diagram "
+                        "(their number is given below the panel)")
 
 
 # ---- Parser builder - subcommands ---- #
@@ -877,6 +880,7 @@ def _overview_options(args, panels, metadata=None):
         mq_contamination=getattr(args, "mq_contamination", None),
         max_contamination_axis=get("max_contamination_axis", fallback=default.max_contamination_axis),
         flow_ranks=tuple(get("flow_ranks", fallback=default.flow_ranks)),
+        flow_drop_unclassified=bool(getattr(args, "flow_drop_unclassified", False)),
         top_n=get("top_n", "n", fallback=default.top_n),
         top_modules=get("top_modules", fallback=default.top_modules),
         module_mode=mode if mode in ("mean", "variance") else default.module_mode,
